@@ -1,0 +1,275 @@
+integer max_users = 5;
+integer dialog_comms;
+integer comms;
+integer handle;
+integer dialog;
+integer nc_line;
+string check_it;
+list users;
+list tnl;
+list tkl;
+key nc_query;
+key n2k_query;
+key id_query;
+key av;
+
+perm_check()
+{
+    if((llGetInventoryPermMask(llGetScriptName(), MASK_NEXT) & (PERM_COPY | PERM_TRANSFER)) == (PERM_COPY | PERM_TRANSFER) || (llGetInventoryPermMask(llGetScriptName(), MASK_NEXT) & (PERM_MODIFY)) == (PERM_MODIFY))
+    {
+        llOwnerSay("Deleting " + llGetScriptName() + " because the permissions were not set properly. Please contact the seller to get a replacement and let them know about this issue.");
+        llRemoveInventory(llGetScriptName());
+    }
+}
+
+default
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        llSetTimerEvent(0);
+        perm_check();
+        users = [];
+        tnl = [];
+        tkl = [];
+        check_it = "";
+        if(llGetInventoryType("setup") == INVENTORY_NOTECARD && llGetAttached() == 0)
+        {
+            llOwnerSay("This device is not attached and a setup notecard has been found. Initiating authorized user registration. Please wait...");
+            nc_line = 0;
+            nc_query = llGetNumberOfNotecardLines("setup");
+        }
+        else
+        {
+            state running;
+        }
+    }
+    dataserver(key query, string data)
+    {
+        if(query == nc_query) 
+        {
+            integer count = (integer)data;
+            while(nc_line < count)
+            {
+                string line = llGetNotecardLineSync("setup", nc_line);
+                if(line == NAK)
+                {
+                    nc_query = llGetNumberOfNotecardLines("setup");
+                }
+                else
+                {
+                    if(line != EOF)
+                    {
+                        if(llGetSubString(llStringTrim(line, STRING_TRIM), 0, 0) != "#" && llStringTrim(line, STRING_TRIM) != "")
+                        {
+                            string value = llStringTrim(llToLower(line), STRING_TRIM);
+                            integer ender;
+                            if(llSubStringIndex(value, "secondlife:///app/agent/") != -1)
+                            {
+                                integer start = llSubStringIndex(value, "secondlife:///app/agent/")+24;
+                                integer end = -1;
+                                if(llSubStringIndex(value, "/about") != -1)
+                                {
+                                    end = llSubStringIndex(value, "/about")-1;
+                                }
+                                value = llGetSubString(value, start, end);
+                            }
+                            if((key)value)
+                            {
+                                tkl += (key)value;
+                            }
+                            else
+                            {
+                                if(llListFindList(tnl, [value]) == -1)
+                                {
+                                    tnl += value;
+                                }
+                            }
+                        }
+                        nc_line++;
+                    }
+                }
+            }
+            if(llGetListLength(tnl) > 0 || llGetListLength(tkl) > 0)
+            {
+                llSetTimerEvent(1);
+            }
+            else
+            {
+                state running;
+            }
+        }
+        if(query == n2k_query)
+        {
+            if((key)data)
+            {
+                if(llListFindList(users, [(key)data]) == -1 && llGetListLength(users) < max_users)
+                {
+                    users += (key)data;
+                }
+            }
+            tnl = llDeleteSubList(tnl, 0, 0);
+            llSetTimerEvent(1);
+        }
+        if(query == id_query)
+        {
+            if(llListFindList(users, [(key)check_it]) == -1 && llGetListLength(users) < max_users)
+            {
+                users += (key)check_it;
+            }
+            tkl = llDeleteSubList(tkl, 0, 0);
+            llSetTimerEvent(1);
+        }
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        if(llGetListLength(users) < 5)
+        {
+            if(llList2String(tnl, 0) == check_it && llGetListLength(tnl) > 0)
+            {
+                tnl = llDeleteSubList(tnl, 0, 0);
+            }
+            if(llList2String(tkl, 0) == check_it && llGetListLength(tkl) > 0)
+            {
+                tkl = llDeleteSubList(tkl, 0, 0);
+            }
+            if(llGetListLength(tnl) > 0)
+            {
+                check_it = llList2String(tnl, 0);
+                n2k_query = llRequestUserKey(check_it);
+            }
+            else
+            {
+                if(llGetListLength(tkl) > 0)
+                {
+                    check_it = llList2String(tkl, 0);
+                    llSetTimerEvent(10);
+                    id_query = llRequestAgentData((key)check_it, DATA_NAME);
+                }
+                else
+                {
+                    tnl = [];
+                    tkl = [];
+                    check_it = "";
+                    state running;
+                }
+            }
+        }
+        else
+        {
+            tnl = [];
+            tkl = [];
+            check_it = "";
+            state running;
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_REGION_START || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
+state running
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        llSetTimerEvent(0);
+        llListenRemove(dialog);
+        perm_check();
+        av = NULL_KEY;
+        comms = -58764; //Replace with a more securely generated channel number.
+        if(llGetAttached() == 0 && llGetInventoryType("setup") == INVENTORY_NOTECARD)
+        {
+            if(llGetListLength(users) > 0)
+            {
+                integer user_count = llGetListLength(users);
+                if(user_count == 1)
+                {
+                    llOwnerSay("Registration of authorized users has been completed.\n\nThis device can be used by you and secondlife:///app/agent/" + llList2String(users, 0) + "/about.");
+                }
+                else
+                {
+                    llOwnerSay("Registration of authorized users has been completed.\n\nThis device can be used by you and the following " + (string)user_count + " users:");
+                    integer i;
+                    for(i = 0; i < user_count; i++)
+                    {
+                        llOwnerSay((string)(i+1) + ". secondlife:///app/agent/" + llList2String(users, i) + "/about");
+                    }
+                }
+            }
+            else
+            {
+                llOwnerSay("Registration of authorized users has been completed.\n\nThis device can only be used by you.");
+            }
+        }
+    }
+    touch_start(integer total_number)
+    {
+        if(llDetectedKey(0) == llGetOwner() || llListFindList(users, [llDetectedKey(0)]) != -1)
+        {
+            if(av != llDetectedKey(0) && av != NULL_KEY)
+            {
+                if(llDetectedKey(0) == llGetOwner())
+                {
+                    llRegionSayTo(av, 0, "The owner of this object has taken control of it.");
+                }
+                else
+                {
+                    llRegionSayTo(av, 0, "Someone else is currently controlling this object. Please wait until they are done to try again.");
+                }
+            }
+            else
+            {
+                perm_check();
+                llListenRemove(dialog);
+                av = llDetectedKey(0);
+                dialog_comms = -18354; //Replace with a more securely generated channel number.
+                llDialog(av, "Change hole/basket positions right now?\n\t\nNOTE: If you select \"YES\" below the holes will move as soon as no avatars are near them.\n\t", ["YES", "NO"], dialog_comms);
+                dialog = llListen(dialog_comms, "", NULL_KEY, "");
+                llSetTimerEvent(30);
+            }
+        }
+    }
+    listen(integer chan, string name, key id, string msg)
+    {
+        if(chan == dialog_comms && (id == llGetOwner() || llListFindList(users, [id]) != -1))
+        {
+            if(msg == "YES")
+            {
+                llSetTimerEvent(0);
+                llRegionSay(comms, "rand_hole_pos");
+                llListenRemove(dialog);
+                av = NULL_KEY;
+            }
+            else
+            {
+                llSetTimerEvent(0);
+                llListenRemove(dialog);
+                av = NULL_KEY;
+            }
+        }
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        llListenRemove(dialog);
+        av = NULL_KEY;
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_REGION_START || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
