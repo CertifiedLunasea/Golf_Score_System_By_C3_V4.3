@@ -1,0 +1,264 @@
+integer board_chan = -211122;
+integer score_count = 0;
+integer total_players = 40;
+integer lockout = FALSE;
+list score_list;
+
+send_scores()
+{
+    if(llGetListLength(score_list)/3 > 0)
+    {
+        integer prev_score = 999;
+        integer rank = 0;
+        integer count = 0;
+        integer a;
+        for(a = 0; a < total_players * 3 && a < llGetListLength(score_list); a = a+3)
+        {
+            count++;
+            if((integer)llList2String(score_list, a) != prev_score)
+            {
+                if(lockout == FALSE)
+                {
+                    llRegionSay(board_chan, "NewData");
+                    lockout = TRUE;
+                }
+                rank = count;
+                prev_score = (integer)llList2String(score_list, a);
+            }
+            llSleep(0.01);
+            llRegionSay(board_chan, llList2String(score_list, a) + "-" + llList2String(score_list, a+1) + "-" + (string)rank);
+            if(a+3 >= total_players || a+3 >= llGetListLength(score_list))
+            {
+                llRegionSay(board_chan, "DataDone");
+                lockout = FALSE;
+            }
+        }
+    }
+    else
+    {
+        llRegionSay(board_chan, "cleardata");
+        lockout = FALSE;
+    }
+}
+
+default
+{
+    state_entry()
+    {
+        board_chan = -211122; //Replace with a more securely generated channel number.
+        string base_name = "Golf Score Server - ";
+        string version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+        if(llGetInventoryType(base_name + "Control" + version) == INVENTORY_SCRIPT && llGetInventoryType(base_name + "DQ List" + version) == INVENTORY_SCRIPT)
+        {
+            score_list = [];
+            score_count = 0;
+            if((integer)llStringTrim(llGetObjectDesc(), STRING_TRIM) <= 3)
+            {
+                total_players = 3;
+            }
+            else
+            {
+                if((integer)llStringTrim(llGetObjectDesc(), STRING_TRIM) > 100)
+                {
+                    total_players = 100;
+                }
+                else
+                {
+                    total_players = (integer)llStringTrim(llGetObjectDesc(), STRING_TRIM);
+                }
+            }
+            llSetObjectDesc((string)total_players);
+            llRegionSay(board_chan, "ClearData");
+            llSetText("Click for score server menu. (OWNER ONLY)", <1.0,1.0,1.0>, 1.0);
+        }
+        else
+        {
+            state wait;
+        }
+    }
+    link_message(integer link, integer num, string msg, key id)
+    {
+        if(link == llGetLinkNumber() && num == 0)
+        {
+            if(msg == "show score list")
+            {
+                if(llGetListLength(score_list)/3 > 0)
+                {
+                    integer prev_score = 999;
+                    integer rank = 0;
+                    integer count = 0;
+                    integer a;
+                    llRegionSay(board_chan, "NewData");
+                    for(a = 0; a < total_players * 3 && a < llGetListLength(score_list); a = a+3)
+                    {
+                        count++;
+                        if((integer)llList2String(score_list, a) != prev_score)
+                        {
+                            rank = count;
+                            prev_score = (integer)llList2String(score_list, a);
+                        }
+                        llRegionSayTo(id, 0, (string)rank + ". secondlife:///app/agent/" + llList2String(score_list, a+2) + "/about - " + llList2String(score_list, a));
+                        llRegionSay(board_chan, llList2String(score_list, a) + "-" + llList2String(score_list, a+1) + "-" + (string)rank);
+                    }
+                    llRegionSay(board_chan, "DataDone");
+                    llRegionSayTo(id, 0, "Score data sent to all score boards on the region.");
+                }
+                else
+                {
+                    llRegionSay(board_chan, "cleardata");
+                    llRegionSayTo(id, 0, "There is no score data stored.");
+                }
+            }
+            else if(msg == "send score data")
+            {
+                if(llGetListLength(score_list)/3 > 0)
+                {
+                    llRegionSayTo(id, 0, "Sending score data to all score boards on the region.");
+                    llSetTimerEvent(0.01);
+                }
+                else
+                {
+                    llRegionSayTo(id, 0, "There is no score data to send.");
+                }
+            }
+            else if(msg == "send all scores")
+            {
+                llSetTimerEvent(0.01);
+            }
+            else if(msg == "clear all scores")
+            {
+                score_list = [];
+                score_count = 0;
+                llRegionSay(board_chan, "ClearData");
+                if((integer)llStringTrim(llGetObjectDesc(), STRING_TRIM) <= 3)
+                {
+                    total_players = 3;
+                }
+                else
+                {
+                    if((integer)llStringTrim(llGetObjectDesc(), STRING_TRIM) > 100)
+                    {
+                        total_players = 100;
+                    }
+                    else
+                    {
+                        total_players = (integer)llStringTrim(llGetObjectDesc(), STRING_TRIM);
+                    }
+                }
+                llSetText("Click for score server menu. (OWNER ONLY)", <1.0,1.0,1.0>, 1.0);
+            }
+            else if(msg == "display score memory")
+            {
+                llRegionSayTo(id, 0, "There is " + (string)(llGetFreeMemory()/1024) + "KB of script memory remaining to store player score data.");
+            }
+            else if(llGetSubString(msg, 0, 3) == "sc+ " && llStringLength(llStringTrim(msg, STRING_TRIM)) > 3 && llSubStringIndex(llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM), "|") != -1)
+            {
+                msg = llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM);
+                list temp = llParseString2List(msg, ["|"], []);
+                integer located = llListFindList(score_list, [llList2String(temp, 0)]);
+                if(located == -1/* || (key)llList2String(temp, 0) == llGetInventoryCreator(llGetScriptName())*/)
+                {
+                    score_list += [llList2Integer(temp, -1), llList2String(temp, 1), llList2String(temp, 0)];
+                }
+                else
+                {
+                    if(llList2Integer(score_list, located-2) > llList2Integer(temp, -1))
+                    {
+                        score_list = llListReplaceList(score_list, [llList2Integer(temp, -1), llList2String(temp, 1),  llList2String(temp, 0)], located-2, located);
+                    }
+                    else if(llList2String(score_list, located-1) != llList2String(temp, 1))
+                    {
+                        score_list = llListReplaceList(score_list, [llList2String(temp, 1)], located-1, located-1);
+                    }
+                }
+                score_list = llListSort(score_list, 3, TRUE);
+                if((integer)llStringTrim(llGetObjectDesc(), STRING_TRIM) <= 3)
+                {
+                    total_players = 3;
+                }
+                else
+                {
+                    if((integer)llStringTrim(llGetObjectDesc(), STRING_TRIM) > 100)
+                    {
+                        total_players = 100;
+                    }
+                    else
+                    {
+                        total_players = (integer)llStringTrim(llGetObjectDesc(), STRING_TRIM);
+                    }
+                }
+                llSetObjectDesc((string)total_players);
+                while(llGetListLength(score_list) > (20+total_players) * 3)
+                {
+                    score_list = llDeleteSubList(score_list, -3, -1);
+                }
+                score_count++;
+                llSetText("Recording the best " + (string)total_players + " submitted scores.\nThere have been " + (string)score_count + " scores submitted.\n\t\nClick for score server menu. (OWNER ONLY)", <1, 1, 1>, 1);
+                llSetTimerEvent(1);
+            }
+            else if(llGetSubString(msg, 0, 3) == "sc- " && llStringLength(llStringTrim(msg, STRING_TRIM)) > 3)
+            {
+                msg = llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM);
+                integer located = llListFindList(score_list, [msg]);
+                if(located != -1)
+                {
+                    llRegionSay(board_chan, "ClearData");
+                    score_list = llDeleteSubList(score_list, located-2, located);
+                    llSetTimerEvent(1);
+                }
+            }
+            else if(llGetSubString(msg, 0, 3) == "np= ")
+            {
+                msg = llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM);
+                if((integer)llStringTrim(msg, STRING_TRIM) < 3 || (integer)llStringTrim(msg, STRING_TRIM) > 100)
+                {
+                    llSetObjectDesc("40");
+                    total_players = 40;
+                    llRegionSayTo(id, 0, "Due to an improper setting being used the maximum number of players to display on score boards in this region has been set to 40.");
+                }
+                else
+                {
+                    llSetObjectDesc(llStringTrim(msg, STRING_TRIM));
+                    total_players = (integer)llStringTrim(msg, STRING_TRIM);
+                    llRegionSayTo(id, 0, "The maximum number of players to display on score boards in this region has been set to " + llStringTrim(msg, STRING_TRIM) + ".");
+                }
+                llSetTimerEvent(1);
+            }
+        }
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        send_scores();
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER)
+        {
+            llResetScript();
+        }
+        if(change & CHANGED_INVENTORY)
+        {
+            string base_name = "Golf Score Server - ";
+            string version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+            if(llGetInventoryType(base_name + "Control" + version) != INVENTORY_SCRIPT && llGetInventoryType(base_name + "DQ List" + version) != INVENTORY_SCRIPT)
+            {
+                state wait;
+            }
+        }
+    }
+}
+state wait
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
