@@ -1,0 +1,35 @@
+=========================================================
+INTRODUCTION
+=========================================================
+
+The Golf Hole/Basket Master Control script is meant to allow you to trigger the movement of all of your holes and/or baskets on a region that are configured to do so, all at the same time with just a couple of clicks. Additionally, you may specify up to five (5) other users that are able to use this script if needed. Just follow the instructions below to get things moving!
+
+*****************
+NOTE: This script is only useful if you are taking advantage of the new moving hole/basket function of the Golf Hole/Basket Script. See the setup notecard for the Golf Hole/Basket script for details on how to use this feature.
+*****************
+
+=========================================================
+INSTRUCTIONS
+=========================================================
+
+Keep in mind this script can be used as a HUD attachment or rezzed on the ground. The choice is entirely yours! In either case follow these instructions to get the script up and running.
+
+1. Make a prim or find a prim or object that you own and can edit and drop in the script.
+2. (OPTIONAL) If you need to have authorized users able to move your holes/baskets by using this device then follow the instructions in the setup notecard and drop it into the prim you placed the script into.
+
+*****************
+NOTE: Authorized users are only set up if the object is rezzed out. Once they are set up the object will react to clicks from authorized users if it is rezzed or worn as a publicly visible (non-HUD) attachment.
+*****************
+
+=========================================================
+USAGE
+=========================================================
+
+Super simple operation. Just two clicks gets any holes and/or baskets you own on the region to move about if they are set up to use this feature.
+
+1. Click the object to get a dialog menu asking if you wish to move things around.
+2. Click yes on the dialog menu to cause all the holes and/or baskets that you own on the region to move around if they are set up to do so.
+
+*****************
+NOTE: Holes and/or baskets will wait to move if an avatar is within their range setting so that putting is not disrupted. In addition they will not move unless they are set up to use that function. See the setup notecard for the Golf Hole/Basket script for details on how to use this feature.
+*****************
