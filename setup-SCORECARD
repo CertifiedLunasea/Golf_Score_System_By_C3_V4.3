@@ -1,0 +1,39 @@
+# Card Type
+type = recreational
+
+# Game Object
+object = 
+
+# Tournament Server ID
+server id = 
+
+# Recreational Server IDs
+round server id = 
+f9 server id = 
+b9 server id = 
+
+# Penalty Settings
+water hazard = 1
+moved token = 3
+false start = 5
+wrong hole = 1
+
+# Course Definition
+hole1 = 3, x, x
+hole2 = 3, x, x
+hole3 = 3, x, x
+hole4 = 3, x, x
+hole5 = 3, x, x
+hole6 = 3, x, x
+hole7 = 3, x, x
+hole8 = 3, x, x
+hole9 = 3, x, x
+hole10 = 3, x, x
+hole11 = 3, x, x
+hole12 = 3, x, x
+hole13 = 3, x, x
+hole14 = 3, x, x
+hole15 = 3, x, x
+hole16 = 3, x, x
+hole17 = 3, x, x
+hole18 = 3, x, x
