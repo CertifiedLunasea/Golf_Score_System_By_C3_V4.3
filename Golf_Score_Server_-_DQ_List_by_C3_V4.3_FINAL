@@ -1,0 +1,137 @@
+list dq_list;
+
+default
+{
+    state_entry()
+    {
+        string base_name = "Golf Score Server - ";
+        string version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+        if(llGetInventoryType(base_name + "Control" + version) == INVENTORY_SCRIPT && llGetInventoryType(base_name + "Ranking" + version) == INVENTORY_SCRIPT)
+        {
+            dq_list = [];
+        }
+        else
+        {
+            state wait;
+        }
+    }
+    link_message(integer link, integer num, string msg, key id)
+    {
+        if(link == llGetLinkNumber() && num == 0)
+        {
+            if(msg == "show dq list")
+            {
+                if(llGetListLength(dq_list) > 0)
+                {
+                    llRegionSayTo(id, 0, "Disqualified Players:");
+                    integer i;
+                    for(i = 0; i < llGetListLength(dq_list); i++)
+                    {
+                        llRegionSayTo(id, 0, "secondlife:///app/agent/" + llList2String(dq_list, i) + "/about");
+                    }
+                    llRegionSayTo(id, 0, "Number of Disqualified Players: " + (string)llGetListLength(dq_list));
+                }
+                else
+                {
+                    llRegionSayTo(id, 0, "There are no disqualified players at this time.");
+                }
+            }
+            else if(msg == "clear dq list")
+            {
+                llRegionSayTo(id, 0, "All Disqualifications have been cleared.");
+                dq_list = [];
+            }
+            else if(msg == "clear all dq")
+            {
+                dq_list = [];
+            }
+            else if(msg == "display dq memory")
+            {
+                llRegionSayTo(id, 0, "There is " + (string)(llGetFreeMemory()/1024) + "KB of script memory remaining to store disqualified player data.");
+            }
+            else if(llGetSubString(msg, 0, 3) == "dq+ " && llStringLength(llStringTrim(msg, STRING_TRIM)) > 3)
+            {
+                msg = llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM);
+                if((key)llToLower(msg))
+                {
+                    integer located = llListFindList(dq_list, [llToLower(msg)]);
+                    if(located != -1)
+                    {
+                        llRegionSayTo(id, 0, "The player named secondlife:///app/agent/" + msg + "/about is already disqualified. No further action is needed.");
+                    }
+                    else
+                    {
+                        dq_list += llToLower(msg);
+                        llMessageLinked(llGetLinkNumber(), 0, "sc- " + msg, llGetKey());
+                        llRegionSayTo(id, 0, "The player named secondlife:///app/agent/" + msg + "/about is now disqualified. Any score data has also been removed for this player.");
+                    }
+                }
+                else
+                {
+                    llRegionSayTo(id, 0, "The data entered, " + llToLower(msg) + ", is not a valid UUID. Please check the UUID and try again.");
+                }
+            }
+            else if(llGetSubString(msg, 0, 3) == "dq- " && llStringLength(llStringTrim(msg, STRING_TRIM)) > 3)
+            {
+                msg = llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM);
+                if((key)llToLower(msg))
+                {
+                    integer located = llListFindList(dq_list, [llToLower(msg)]);
+                    if(located != -1)
+                    {
+                        dq_list = llDeleteSubList(dq_list, located, located);
+                        llRegionSayTo(id, 0, "The disqualification for the player named secondlife:///app/agent/" + msg + "/about has been rescinded.");
+                    }
+                    else
+                    {
+                        llRegionSayTo(id, 0, "The player named secondlife:///app/agent/" + msg + "/about was not disqualified. No further action is needed.");
+                    }
+                }
+                else
+                {
+                    llRegionSayTo(id, 0, "The data entered, " + llToLower(msg) + ", is not a valid UUID. Please check the UUID and try again.");
+                }
+            }
+            else if(llGetSubString(msg, 0, 3) == "dq? " && llStringLength(llStringTrim(msg, STRING_TRIM)) > 3 && llSubStringIndex(llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM), "|") != -1)
+            {
+                msg = llStringTrim(llGetSubString(msg, 4, -1), STRING_TRIM);
+                list temp = llParseString2List(msg, ["|"], []);
+                integer located = llListFindList(dq_list, [llToLower(llList2String(temp, 0))]);
+                if(located == -1)
+                {
+                    llMessageLinked(llGetLinkNumber(), 0, "sc+ " + llList2String(temp, 0) + "|" + llList2String(temp, 1) + "|" + llList2String(temp, -1), llGetKey());
+                }
+            }
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER)
+        {
+            llResetScript();
+        }
+        if(change & CHANGED_INVENTORY)
+        {
+            string base_name = "Golf Score Server - ";
+            string version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+            if(llGetInventoryType(base_name + "Control" + version) != INVENTORY_SCRIPT && llGetInventoryType(base_name + "Ranking" + version) != INVENTORY_SCRIPT)
+            {
+                state wait;
+            }
+        }
+    }
+}
+state wait
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
