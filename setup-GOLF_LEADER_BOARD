@@ -1,0 +1,58 @@
+# SERVER ID
+# This setting designates the UUID of the score server to listen to.
+# The value must be exactly the same as the Server ID of the server or your leader board might not register scores properly.
+# You can get the server id by clicking on the server and copying just the id from the dialog.
+server id = 
+
+# HEADER TEXT
+# This setting determines the content of the header line on the board.
+# The value can contain any character easily typed using a standard QWERTY US English Keyboard layout.
+# The value can also contain any of 32 extended characters. Instructions to use the extended characters can be found below.
+header = -Custom Header Here
+
+# FOOTER TEXT
+# This setting determines the content of the footer line on the board.
+# The value can contain any character easily typed using a standard QWERTY US English Keyboard layout.
+# The value can also contain any of 32 extended characters. Instructions to use the extended characters can be found below.
+footer = Custom Footer Here+
+
+# SPECIAL CHARACTER INSTRUCTIONS FOR THE HEADER OR FOOTER TEXT
+# You can use any of the 32 extended characters by using the following characters in the header or footer value:
+# Ⓐ will give you a mid-dot character.
+# Ⓑ will give you the copyright symbol.
+# Ⓒ will give you the registered trademark symbol.
+# Ⓓ will give you the TM used to denote a trademark.
+# Ⓔ will give you an AM for time use.
+# Ⓕ will give you a PM for time use.
+# Ⓖ will give you a calendar and clock symbol for dates and times.
+# Ⓗ will give you an image of a golf green.
+# Ⓘ will give you an image of a golf club.
+# Ⓙ will give you an image of a golf ball.
+# Ⓚ will give you an image of a golf bag.
+# Ⓛ will give you an image of a golf cart.
+# Ⓜ will give you an image of a trophy.
+# Ⓝ will give you a symbol for 1st.
+# Ⓞ will give you a symbol for 2nd.
+# Ⓟ will give you a symbol for 3rd.
+# Ⓠ will give you a symbol for L$.
+# Ⓡ will give you an upward pointing triangle.
+# Ⓢ will give you a downward pointing triangle.
+# Ⓣ will give you a leftward pointing triangle.
+# Ⓤ will give you a rightward pointing triangle.
+# Ⓥ will give you a spade card suit.
+# Ⓦ will give you a club card suit.
+# Ⓧ will give you a diamond card suit.
+# Ⓨ will give you a heart card suit.
+# Ⓩ will give you an image of a skull and crossbones.
+# ➀ will give you an image of a jack-o-lantern.
+# ➁ will give you an image of a Christmas tree.
+# ➂ will give you an image of a four-leaf clover.
+# ➃ will give you an image of a rabbit.
+# ➄ will give you an image of a star.
+# ➅ will give you an image of a lightning bolt.
+
+# CUSTOM CHARACTER SHEET
+# To use a custom character sheet you will need the Character Sheet Template that came with your Leader Board and image editing software.
+# Once you have edited your Character Sheet Template to your liking upload it to Second Life and name it "Character Sheet" without the quotes.
+# The name of your custom character sheet is CASE SENSITIVE, so make sure to name it exactly as described above.
+# Once the image is properly named you can drop it into your Leader Board and the script will automatically use your new custom character sheet.
