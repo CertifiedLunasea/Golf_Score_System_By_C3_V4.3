@@ -1,0 +1,633 @@
+integer server_chan = -221664;
+integer board_chan = -211122;
+integer lockout = FALSE;
+integer max_count;
+integer page_num;
+integer nc_line;
+string server_name = "golf tournament server by c3";
+string character_sheet = NULL_KEY; //Replace with a UUID that references a character sheet measuring 1024px wide and 512px tall. This size allows each character to occupy a space of 64px by 64px. It must be laid out in the following order (Note that row 4 contains two blank spaces between z and 1 characters and that the last two rows can contain any characters or pictograms you wish to use and with each being triggered by the text shown for them in this template): Row 1 - AaBbCcDdEeFfGgHh Row 2 = IiJjKkLlMmNnOoPp Row 3 = QqRrSsTtUuVvWwXx Row 4 = YyZz  1234567890 Row 5 = `:;"'<>,.?/-=[]\ Row 6 = ~!@#$%^&*()_+{}| Row 7 = ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅ Row 8 = ⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ➀➁➂➃➄➅
+string header_text = "Course Tournament - Top 10";
+string footer_text = "ⒽⒾⒿⓀⓁⓂ Tournament Card Required to Enter ⓂⓁⓀⒿⒾⒽ";
+string pass;
+list scores;
+key nc_query;
+setup()
+{
+    llLinksetDataReset();
+    pass = "the_password_to_get_access"; //Replace this with some reasonably secure method of generating a password for llLinksetData* functions.
+    list temp = [];
+    string str_chk;
+    integer str_sep;
+    integer char_len;
+    integer chars;
+    integer i;
+    integer x;
+    //HEADER PANEL SETUP
+    for(i = 2; i <= llGetObjectPrimCount(llGetKey()); i++)
+    {
+        if(llToLower(llGetSubString(llGetLinkName(i), 0, 5)) == "header")
+        {
+            llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, ALL_SIDES, character_sheet, <0.06250, 0.12500, 0>, <-0.22, 0.0625, 0>, 0.0]);
+            temp += [llToLower(llStringTrim(llGetSubString(llGetLinkName(i), 6, -1), STRING_TRIM)), i];
+            str_chk = llToLower(llStringTrim(llGetSubString(llGetLinkName(i), 6, -1), STRING_TRIM));
+            str_sep = llSubStringIndex(str_chk, "-");
+            char_len = 8*((integer)llStringTrim(llGetSubString(str_chk, str_sep+1, -1), STRING_TRIM));
+            if(chars < char_len)
+            {
+                chars = char_len;
+            }
+        }
+    }
+    llLinksetDataWriteProtected("hchars", (string)chars, pass);
+    llLinksetDataWriteProtected("htp", (string)(llGetListLength(temp)/2), pass);
+    temp = llListSort(temp, 2, TRUE);
+    x = 0;
+    for(i = 0; i < llGetListLength(temp); i = i+2)
+    {
+        llLinksetDataWriteProtected("h" + (string)x, llList2String(temp, i+1), pass);
+        x++;
+    }
+    temp = [];
+    chars = 0;
+    //PLAYER PANEL SETUP
+    for(i = 2; i <= llGetObjectPrimCount(llGetKey()); i++)
+    {
+        if(llToLower(llGetSubString(llGetLinkName(i), 0, 5)) == "number")
+        {
+            llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, ALL_SIDES, character_sheet, <0.06250, 0.12500, 0>, <-0.22, 0.0625, 0>, 0.0]);
+            temp += [llToLower(llStringTrim(llGetSubString(llGetLinkName(i), 6, -1), STRING_TRIM)), i];
+            str_chk = llToLower(llStringTrim(llGetSubString(llGetLinkName(i), 6, -1), STRING_TRIM));
+            str_sep = llSubStringIndex(str_chk, "-");
+            integer this_count = (integer)llStringTrim(llGetSubString(str_chk, 0, str_sep-1), STRING_TRIM);
+            if(max_count < this_count)
+            {
+                max_count = this_count;
+            }
+            char_len = (8*((integer)llStringTrim(llGetSubString(str_chk, str_sep+1, -1), STRING_TRIM)))-(llStringLength((string)max_count)+5);
+            if(chars < char_len)
+            {
+                chars = char_len;
+            }
+        }
+    }
+    llLinksetDataWriteProtected("mc", (string)max_count, pass);
+    llLinksetDataWriteProtected("pchars", (string)chars, pass);
+    llLinksetDataWriteProtected("ptp", (string)(llGetListLength(temp)/2), pass);
+    temp = llListSort(temp, 2, TRUE);
+    x = 0;
+    for(i = 0; i < llGetListLength(temp); i = i+2)
+    {
+        llLinksetDataWriteProtected("p" + (string)x, llList2String(temp, i+1), pass);
+        x++;
+    }
+    temp = [];
+    chars = 0;
+    //FOOTER PANEL SETUP
+    for(i = 2; i <= llGetObjectPrimCount(llGetKey()); i++)
+    {
+        if(llToLower(llGetSubString(llGetLinkName(i), 0, 5)) == "footer")
+        {
+            llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, ALL_SIDES, character_sheet, <0.06250, 0.12500, 0>, <-0.22, 0.0625, 0>, 0.0]);
+            temp += [llToLower(llStringTrim(llGetSubString(llGetLinkName(i), 6, -1), STRING_TRIM)), i];
+            str_chk = llToLower(llStringTrim(llGetSubString(llGetLinkName(i), 6, -1), STRING_TRIM));
+            str_sep = llSubStringIndex(str_chk, "-");
+            char_len = 8*((integer)llStringTrim(llGetSubString(str_chk, str_sep+1, -1), STRING_TRIM));
+            if(chars < char_len)
+            {
+                chars = char_len;
+            }
+        }
+    }
+    llLinksetDataWriteProtected("fchars", (string)chars, pass);
+    llLinksetDataWriteProtected("ftp", (string)(llGetListLength(temp)/2), pass);
+    temp = llListSort(temp, 2, TRUE);
+    x = 0;
+    for(i = 0; i < llGetListLength(temp); i = i+2)
+    {
+        llLinksetDataWriteProtected("f" + (string)x, llList2String(temp, i+1), pass);
+        x++;
+    }
+    temp = [];
+    chars = 0;
+    scores = [];
+    page_num = 0;
+}
+float get_offset_x(string char)
+{
+    if(llListFindList(["A", "I", "Q", "Y", "`", "~", "Ⓐ", "Ⓠ"], [char]) != -1)
+    {
+        return -0.47;
+    }
+    else if(llListFindList(["a", "i", "q", "y", ":", "!", "Ⓑ", "Ⓡ"], [char]) != -1)
+    {
+        return -0.4075;
+    }
+    else if(llListFindList(["B", "J", "R", "Z", ";", "@", "Ⓒ", "Ⓢ"], [char]) != -1)
+    {
+        return -0.345;
+    }
+    else if(llListFindList(["b", "j", "r", "z", "\"", "#", "Ⓓ", "Ⓣ"], [char]) != -1)
+    {
+        return -0.2825;
+    }
+    else if(llListFindList(["C", "K", "S", " ", "'", "$", "Ⓔ", "Ⓤ"], [char]) != -1)
+    {
+        return -0.22;
+    }
+    else if(llListFindList(["c", "k", "s", "<", "%", "Ⓕ", "Ⓥ"], [char]) != -1)
+    {
+        return -0.1575;
+    }
+    else if(llListFindList(["D", "L", "T", "1", ">", "^", "Ⓖ", "Ⓦ"], [char]) != -1)
+    {
+        return -0.095;
+    }
+    else if(llListFindList(["d", "l", "t", "2", ",", "&", "Ⓗ", "Ⓧ"], [char]) != -1)
+    {
+        return -0.0325;
+    }
+    else if(llListFindList(["E", "M", "U", "3", ".", "*", "Ⓘ", "Ⓨ"], [char]) != -1)
+    {
+        return 0.0325;
+    }
+    else if(llListFindList(["e", "m", "u", "4", "?", "(", "Ⓙ", "Ⓩ"], [char]) != -1)
+    {
+        return 0.095;
+    }
+    else if(llListFindList(["F", "N", "V", "5", "/", ")", "Ⓚ", "➀"], [char]) != -1)
+    {
+        return 0.1575;
+    }
+    else if(llListFindList(["f", "n", "v", "6", "-", "_", "Ⓛ", "➁"], [char]) != -1)
+    {
+        return 0.22;
+    }
+    else if(llListFindList(["G", "O", "W", "7", "=", "+", "Ⓜ", "➂"], [char]) != -1)
+    {
+        return 0.2825;
+    }
+    else if(llListFindList(["g", "o", "w", "8", "[", "{", "Ⓝ", "➃"], [char]) != -1)
+    {
+        return 0.345;
+    }
+    else if(llListFindList(["H", "P", "X", "9", "]", "}", "Ⓞ", "➄"], [char]) != -1)
+    {
+        return 0.4075;
+    }
+    else if(llListFindList(["h", "p", "x", "0", "\\", "|", "Ⓟ", "➅"], [char]) != -1)
+    {
+        return 0.47;
+    }
+    else
+    {
+        return -0.22;
+    }
+}
+float get_offset_y(string char)
+{
+    if(llListFindList(["A", "B", "C", "D", "E", "F", "G", "H"], [llToUpper(char)]) != -1)
+    {
+        return 0.4375;
+    }
+    else if(llListFindList(["I", "J", "K", "L", "M", "N", "O", "P"], [llToUpper(char)]) != -1)
+    {
+        return 0.3125;
+    }
+    else if(llListFindList(["Q", "R", "S", "T", "U", "V", "W", "X"], [llToUpper(char)]) != -1)
+    {
+        return 0.1875;
+    }
+    else if(llListFindList(["Y", "Z", " ", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], [llToUpper(char)]) != -1)
+    {
+        return 0.0625;
+    }
+    else if(llListFindList(["`", ":", ";", "\"", "'", "<", ">", ",", ".", "?", "/", "-", "=", "[", "]", "\\"], [char]) != -1)
+    {
+        return -0.0625;
+    }
+    else if(llListFindList(["~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "{", "}", "|"], [char]) != -1)
+    {
+        return -0.1875;
+    }
+    else if(llListFindList(["Ⓐ", "Ⓑ", "Ⓒ", "Ⓓ", "Ⓔ", "Ⓕ", "Ⓖ", "Ⓗ", "Ⓘ", "Ⓙ", "Ⓚ", "Ⓛ", "Ⓜ", "Ⓝ", "Ⓞ", "Ⓟ"], [char]) != -1)
+    {
+        return -0.3125;
+    }
+    else if(llListFindList(["Ⓠ", "Ⓡ", "Ⓢ", "Ⓣ", "Ⓤ", "Ⓥ", "Ⓦ", "Ⓧ", "Ⓨ", "Ⓩ", "➀", "➁", "➂", "➃", "➄", "➅"], [char]) != -1)
+    {
+        return -0.4375;
+    }
+    else
+    {
+        return 0.0625;
+    }
+}
+gen_text()
+{
+    lockout = FALSE;
+    page_num++;
+    if(((max_count*page_num)-max_count) >= (integer)llLinksetDataReadProtected("sn", pass) || page_num == 0)
+    {
+        page_num = 1;
+    }
+    integer p;
+    for(p = 2; p <= llGetObjectPrimCount(llGetKey()); p++)
+    {
+        if(llToLower(llGetSubString(llGetLinkName(p), 0, 5)) == "number")
+        {
+            llSetLinkPrimitiveParamsFast(p, [PRIM_TEXTURE, ALL_SIDES, character_sheet, <0.06250, 0.12500, 0>, <-0.22, 0.0625, 0>, 0.0]);
+        }
+    }
+    p = 0;
+    integer i;
+    for(i = (max_count*page_num)-max_count; i < (integer)llLinksetDataReadProtected("sn", pass) && i < max_count*page_num; i++)
+    {
+        string disp_text = "";
+        string txt = llLinksetDataReadProtected("s" + (string)i, pass);
+        integer sep_index = llSubStringIndex(txt, "-");
+        string rank = llStringTrim(llGetSubString(txt, 0, sep_index-1), STRING_TRIM);
+        txt = llStringTrim(llGetSubString(txt, sep_index+1, -1), STRING_TRIM);
+        sep_index = llSubStringIndex(txt, "-");
+        string name = llStringTrim(llGetSubString(txt, 0, sep_index-1), STRING_TRIM);
+        string score = llStringTrim(llGetSubString(txt, sep_index+1, -1), STRING_TRIM);
+        integer max_chars = (integer)llLinksetDataReadProtected("pchars", pass);
+        if(llStringLength(name) > max_chars);
+        {
+            name = llStringTrim(llGetSubString(name, 0, max_chars-1), STRING_TRIM);
+        }
+        if(llStringLength(name) < max_chars);
+        {
+            integer c;
+            for(c = llStringLength(name); c < max_chars; c)
+            {
+                name += " ";
+                c = llStringLength(name);
+            }
+        }
+        if(llStringLength(score) < 2)
+        {
+            score = " " + score;
+        }
+        if(llStringLength(rank) < 3)
+        {
+            if(llStringLength(rank) == 1)
+            {
+                rank = "  " + rank;
+            }
+            else if(llStringLength(rank) == 2)
+            {
+                rank = " " + rank;
+            }
+        }
+        disp_text = rank + "-" + name + "-" + score;
+        integer x;
+        for(x = 0; x < (integer)llLinksetDataReadProtected("ptp", pass); x++)
+        {
+            integer panel_index = (integer)llLinksetDataReadProtected("p" + (string)x, pass);
+            string panel_name = llStringTrim(llGetSubString(llGetLinkName(panel_index), 6, -1), STRING_TRIM);
+            integer panel_sep = llSubStringIndex(panel_name, "-");
+            integer panel_id = (integer)llStringTrim(llGetSubString(panel_name, 0, panel_sep-1), STRING_TRIM);
+            if(panel_id == p+1)
+            {
+                integer panel_sector = (integer)llStringTrim(llGetSubString(panel_name, panel_sep+1, -1), STRING_TRIM);
+                integer sym_max = panel_sector*8;
+                integer sym_index = sym_max-8;
+                string sub = llGetSubString(disp_text, sym_index, sym_max-1);
+                string char0 = llGetSubString(sub, 0, 0);
+                vector offset0 = <get_offset_x(char0), get_offset_y(char0), 0>;
+                string char1 = llGetSubString(sub, 1, 1);
+                vector offset1 = <get_offset_x(char1), get_offset_y(char1), 0>;
+                string char2 = llGetSubString(sub, 2, 2);
+                vector offset2 = <get_offset_x(char2), get_offset_y(char2), 0>;
+                string char3 = llGetSubString(sub, 3, 3);
+                vector offset3 = <get_offset_x(char3), get_offset_y(char3), 0>;
+                string char4 = llGetSubString(sub, 4, 4);
+                vector offset4 = <get_offset_x(char4), get_offset_y(char4), 0>;
+                string char5 = llGetSubString(sub, 5, 5);
+                vector offset5 = <get_offset_x(char5), get_offset_y(char5), 0>;
+                string char6 = llGetSubString(sub, 6, 6);
+                vector offset6 = <get_offset_x(char6), get_offset_y(char6), 0>;
+                string char7 = llGetSubString(sub, 7, 7);
+                vector offset7 = <get_offset_x(char7), get_offset_y(char7), 0>;
+                llSetLinkPrimitiveParams(panel_index, [PRIM_TEXTURE, 0, character_sheet, <0.06250, 0.12500, 0>, offset0, 0.0, PRIM_TEXTURE, 1, character_sheet, <0.06250, 0.12500, 0>, offset1, 0.0, PRIM_TEXTURE, 2, character_sheet, <0.06250, 0.12500, 0>, offset2, 0.0, PRIM_TEXTURE, 3, character_sheet, <0.06250, 0.12500, 0>, offset3, 0.0, PRIM_TEXTURE, 4, character_sheet, <0.06250, 0.12500, 0>, offset4, 0.0, PRIM_TEXTURE, 5, character_sheet, <0.06250, 0.12500, 0>, offset5, 0.0, PRIM_TEXTURE, 6, character_sheet, <0.06250, 0.12500, 0>, offset6, 0.0, PRIM_TEXTURE, 7, character_sheet, <0.06250, 0.12500, 0>, offset7, 0.0]);
+            }
+        }
+        p++;
+        if(p > max_count)
+        {
+            p = 0;
+        }
+    }
+}
+gen_header()
+{
+    integer header_chars = (integer)llLinksetDataReadProtected("hchars", pass);
+    if(llStringLength(header_text) < header_chars)
+    {
+        integer l;
+        for(l == llStringLength(header_text); l < header_chars; l)
+        {
+            integer diff = header_chars-llStringLength(header_text);
+            if(diff == 1)
+            {
+                header_text += " ";
+            }
+            else
+            {
+                header_text = " " + header_text + " ";
+            }
+            l = llStringLength(header_text);
+        }
+    }
+    else
+    {
+        header_text = llGetSubString(header_text, 0, header_chars-1);
+    }
+    integer x;
+    for(x = 0; x < (integer)llLinksetDataReadProtected("htp", pass); x++)
+    {
+        integer panel_index = (integer)llLinksetDataReadProtected("h" + (string)x, pass);
+        string panel_name = llStringTrim(llGetSubString(llGetLinkName(panel_index), 6, -1), STRING_TRIM);
+        integer panel_sep = llSubStringIndex(panel_name, "-");
+        integer panel_id = (integer)llStringTrim(llGetSubString(panel_name, 0, panel_sep-1), STRING_TRIM);
+        integer panel_sector = (integer)llStringTrim(llGetSubString(panel_name, panel_sep+1, -1), STRING_TRIM);
+        integer sym_max = panel_sector*8;
+        integer sym_index = sym_max-8;
+        string sub = llGetSubString(header_text, sym_index, sym_max-1);
+        string char0 = llGetSubString(sub, 0, 0);
+        vector offset0 = <get_offset_x(char0), get_offset_y(char0), 0>;
+        string char1 = llGetSubString(sub, 1, 1);
+        vector offset1 = <get_offset_x(char1), get_offset_y(char1), 0>;
+        string char2 = llGetSubString(sub, 2, 2);
+        vector offset2 = <get_offset_x(char2), get_offset_y(char2), 0>;
+        string char3 = llGetSubString(sub, 3, 3);
+        vector offset3 = <get_offset_x(char3), get_offset_y(char3), 0>;
+        string char4 = llGetSubString(sub, 4, 4);
+        vector offset4 = <get_offset_x(char4), get_offset_y(char4), 0>;
+        string char5 = llGetSubString(sub, 5, 5);
+        vector offset5 = <get_offset_x(char5), get_offset_y(char5), 0>;
+        string char6 = llGetSubString(sub, 6, 6);
+        vector offset6 = <get_offset_x(char6), get_offset_y(char6), 0>;
+        string char7 = llGetSubString(sub, 7, 7);
+        vector offset7 = <get_offset_x(char7), get_offset_y(char7), 0>;
+        llSetLinkPrimitiveParams(panel_index, [PRIM_TEXTURE, 0, character_sheet, <0.06250, 0.12500, 0>, offset0, 0.0, PRIM_TEXTURE, 1, character_sheet, <0.06250, 0.12500, 0>, offset1, 0.0, PRIM_TEXTURE, 2, character_sheet, <0.06250, 0.12500, 0>, offset2, 0.0, PRIM_TEXTURE, 3, character_sheet, <0.06250, 0.12500, 0>, offset3, 0.0, PRIM_TEXTURE, 4, character_sheet, <0.06250, 0.12500, 0>, offset4, 0.0, PRIM_TEXTURE, 5, character_sheet, <0.06250, 0.12500, 0>, offset5, 0.0, PRIM_TEXTURE, 6, character_sheet, <0.06250, 0.12500, 0>, offset6, 0.0, PRIM_TEXTURE, 7, character_sheet, <0.06250, 0.12500, 0>, offset7, 0.0]);
+    }
+}
+gen_footer()
+{
+    integer footer_chars = (integer)llLinksetDataReadProtected("fchars", pass);
+    if(llStringLength(footer_text) < footer_chars)
+    {
+        integer l;
+        for(l == llStringLength(footer_text); l < footer_chars; l)
+        {
+            integer diff = footer_chars-llStringLength(footer_text);
+            if(diff == 1)
+            {
+                footer_text += " ";
+            }
+            else
+            {
+                footer_text = " " + footer_text + " ";
+            }
+            l = llStringLength(footer_text);
+        }
+    }
+    else
+    {
+        footer_text = llGetSubString(footer_text, 0, footer_chars-1);
+    }
+    integer x;
+    for(x = 0; x < (integer)llLinksetDataReadProtected("ftp", pass); x++)
+    {
+        integer panel_index = (integer)llLinksetDataReadProtected("f" + (string)x, pass);
+        string panel_name = llStringTrim(llGetSubString(llGetLinkName(panel_index), 6, -1), STRING_TRIM);
+        integer panel_sep = llSubStringIndex(panel_name, "-");
+        integer panel_id = (integer)llStringTrim(llGetSubString(panel_name, 0, panel_sep-1), STRING_TRIM);
+        integer panel_sector = (integer)llStringTrim(llGetSubString(panel_name, panel_sep+1, -1), STRING_TRIM);
+        integer sym_max = panel_sector*8;
+        integer sym_index = sym_max-8;
+        string sub = llGetSubString(footer_text, sym_index, sym_max-1);
+        string char0 = llGetSubString(sub, 0, 0);
+        vector offset0 = <get_offset_x(char0), get_offset_y(char0), 0>;
+        string char1 = llGetSubString(sub, 1, 1);
+        vector offset1 = <get_offset_x(char1), get_offset_y(char1), 0>;
+        string char2 = llGetSubString(sub, 2, 2);
+        vector offset2 = <get_offset_x(char2), get_offset_y(char2), 0>;
+        string char3 = llGetSubString(sub, 3, 3);
+        vector offset3 = <get_offset_x(char3), get_offset_y(char3), 0>;
+        string char4 = llGetSubString(sub, 4, 4);
+        vector offset4 = <get_offset_x(char4), get_offset_y(char4), 0>;
+        string char5 = llGetSubString(sub, 5, 5);
+        vector offset5 = <get_offset_x(char5), get_offset_y(char5), 0>;
+        string char6 = llGetSubString(sub, 6, 6);
+        vector offset6 = <get_offset_x(char6), get_offset_y(char6), 0>;
+        string char7 = llGetSubString(sub, 7, 7);
+        vector offset7 = <get_offset_x(char7), get_offset_y(char7), 0>;
+        llSetLinkPrimitiveParams(panel_index, [PRIM_TEXTURE, 0, character_sheet, <0.06250, 0.12500, 0>, offset0, 0.0, PRIM_TEXTURE, 1, character_sheet, <0.06250, 0.12500, 0>, offset1, 0.0, PRIM_TEXTURE, 2, character_sheet, <0.06250, 0.12500, 0>, offset2, 0.0, PRIM_TEXTURE, 3, character_sheet, <0.06250, 0.12500, 0>, offset3, 0.0, PRIM_TEXTURE, 4, character_sheet, <0.06250, 0.12500, 0>, offset4, 0.0, PRIM_TEXTURE, 5, character_sheet, <0.06250, 0.12500, 0>, offset5, 0.0, PRIM_TEXTURE, 6, character_sheet, <0.06250, 0.12500, 0>, offset6, 0.0, PRIM_TEXTURE, 7, character_sheet, <0.06250, 0.12500, 0>, offset7, 0.0]);
+    }
+}
+default
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        if(llGetInventoryType("setup") == INVENTORY_NOTECARD)
+        {
+            nc_line = 0;
+            nc_query = llGetNumberOfNotecardLines("setup");
+        }
+        else
+        {
+            state running;
+        }
+    }
+    dataserver(key query, string data)
+    {
+        if(query == nc_query) 
+        {
+            integer count = (integer)data;
+            while(nc_line <= count)
+            {
+                string line = llGetNotecardLineSync("setup", nc_line);
+                if(line == NAK)
+                {
+                    nc_query = llGetNumberOfNotecardLines("setup");
+                }
+                else
+                {
+                    if(line != EOF)
+                    {
+                        integer sep = llSubStringIndex(line, "=");
+                        if(llGetSubString(llStringTrim(line, STRING_TRIM), 0, 0) != "#" && llStringTrim(line, STRING_TRIM) != "" && sep != -1)
+                        {
+                            string setting = llStringTrim(llToLower(llGetSubString(line, 0, sep-1)), STRING_TRIM);
+                            string value = llStringTrim(llGetSubString(line, sep+1, -1), STRING_TRIM);
+                            if(setting == "server id" && value != "" && (key)value != NULL_KEY)
+                            {
+                                server_name = llToLower(llStringTrim(llList2String(llGetObjectDetails((key)llToLower(value), [OBJECT_NAME]), 0), STRING_TRIM));
+                                board_chan = -211122; //Relace with a more securely generated channel number.
+                                server_chan = -221664; //Replace with a more securely generated channel number.
+                            }
+                            else
+                            {
+                                if(value == "")
+                                {
+                                    value = " ";
+                                }
+                                if(setting == "header")
+                                {
+                                    header_text = value;
+                                }
+                                else if(setting == "footer")
+                                {
+                                    footer_text = value;
+                                }
+                            }
+                        }
+                        nc_line++;
+                    }
+                    else
+                    {
+                        if(llGetInventoryType("Character Sheet") == INVENTORY_TEXTURE)
+                        {
+                            character_sheet = "Character Sheet";
+                        }
+                        state running;
+                    }
+                }
+            }
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY || change & CHANGED_LINK)
+        {
+            llResetScript();
+        }
+    }
+}
+state running
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        setup();
+        gen_header();
+        gen_footer();
+        llLinksetDataWriteProtected("sn", "0", pass);
+        integer i;
+        for(i = 0; i < 100; i++)
+        {
+            llLinksetDataWriteProtected("s" + (string)i, "", pass);
+        }
+        page_num = 0;
+        llListen(board_chan, "", "", "");
+        llRegionSay(server_chan, "Score Request");
+    }
+    listen(integer chan, string name, key id, string msg)
+    {
+        if(llToLower(llStringTrim(name, STRING_TRIM)) == server_name && llGetOwnerKey(id) == llGetOwner())
+        {
+            if(llToLower(msg) == "cleardata")
+            {
+                llSetTimerEvent(0);
+                scores = [];
+                page_num = 0;
+                integer i;
+                for(i = 0; i < 100; i++)
+                {
+                    llLinksetDataDeleteProtected("s" + (string)i, pass);
+                }
+                llLinksetDataWriteProtected("sn", "0", pass);
+                for(i = 2; i <= llGetObjectPrimCount(llGetKey()); i++)
+                {
+                    if(llToLower(llGetSubString(llGetLinkName(i), 0, 5)) == "number")
+                    {
+                        llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, ALL_SIDES, character_sheet, <0.06250, 0.12500, 0>, <-0.22, 0.0625, 0>, 0.0]);
+                    }
+                }
+            }
+            else if(llToLower(msg) == "newdata")
+            {
+                llSetTimerEvent(0);
+                if(lockout == FALSE)
+                {
+                    lockout = TRUE;
+                    scores = [];
+                }
+            }
+            else if(llToLower(msg) == "datadone")
+            {
+            }
+            else
+            {
+                llSetTimerEvent(0);
+                if(llListFindList(scores, [msg]) == -1)
+                {
+                    scores += msg;
+                }
+                llSetTimerEvent(10);
+            }
+        }
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        if(llGetListLength(scores) > 0)
+        {
+            integer i;
+            for(i = 0; i < 100; i++)
+            {
+                llLinksetDataDeleteProtected("s" + (string)i, pass);
+            }
+            llLinksetDataWriteProtected("sn", "0", pass);
+            for(i = 0; i < 100; i++)
+            {
+                if(i < llGetListLength(scores))
+                {
+                    list tmp = llParseString2List(llList2String(scores, i), ["-"], []);
+                    llLinksetDataWriteProtected("s" + (string)i, llList2String(tmp, 2) + "-" + llList2String(tmp, 1) + "-" + llList2String(tmp, 0), pass);
+                    llLinksetDataWriteProtected("sn", (string)(i+1), pass);
+                }
+                else
+                {
+                    llLinksetDataDeleteProtected("s" + (string)i, pass);
+                }
+            }
+            gen_text();
+        }
+        else if((integer)llLinksetDataReadProtected("sn", pass) > 0)
+        {
+            gen_text();
+        }
+        else
+        {
+            if((integer)llLinksetDataReadProtected("sn", pass) == 0 && llGetListLength(scores) == 0)
+            {
+                llResetScript();
+            }
+        }
+        if((integer)llLinksetDataReadProtected("sn", pass) > max_count || llGetListLength(scores) > max_count)
+        {
+            llSetTimerEvent(10);
+        }
+        else
+        {
+            llSetTimerEvent(0);
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY || change & CHANGED_LINK)
+        {
+            llResetScript();
+        }
+    }
+}
