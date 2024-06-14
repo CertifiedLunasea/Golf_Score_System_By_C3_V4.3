@@ -1,0 +1,357 @@
+integer mode = 0;
+integer server_chan = -221664;
+integer menu_listener = 0;
+integer dialog_chan;
+integer nc_line;
+string base_name = "Golf Score Server - ";
+string last_cmd;
+string last_msg;
+string version;
+string valid_desc = " UNDEFINED";
+key menu_user;
+key nc_query;
+
+dialog()
+{
+    if(mode == 0)
+    {
+        llDialog(menu_user, "\nMain Menu\n\t\nPlease choose one of the following options:\n\t\nScore Admin - Display score menu.\nDQ Admin - Display disqulification menu.\nDescription - Set required score card description.\nReset Server - Resets all server data.\nMemory - Display memory remaining for data.\nDone - Closes the menu.\n\t\nServer ID: " + (string)llGetKey() + "\nScore Card Description: " + llStringTrim(valid_desc, STRING_TRIM) + "\n", ["Reset Server", "Memory", "Done", "Score Admin", "DQ Admin", "Description"], dialog_chan);
+    }
+    if(mode == 1)
+    {
+        llDialog(menu_user, "\nDQ Admin Menu\n\t\nPlease choose one of the following options:\n\t\nGet DQs - Display disqualified players in chat.\nDQ Player - Disqualify a player.\nAllow Player - Rescind a player disqualification.\nBack - Return to the main menu.\nClear DQs - Clears all disqualifications.\nDone - Closes the menu.\n\t\nServer ID: " + (string)llGetKey() + "\n", ["Back", "Clear DQs", "Done", "Get DQs", "DQ Player", "Allow Player"], dialog_chan);
+    }
+    if(mode == 2)
+    {
+        llDialog(menu_user, "\nScore Admin Menu\n\t\nPlease choose one of the following options:\n\t\nGet Scores - Display scores in chat.\nSend Scores - Update score board data.\nSetup - Set the number of ranked players.\nBack - Return to the main menu.\nClear Scores - Clears all scores.\nDone - Closes the menu.\n\t\nServer ID: " + (string)llGetKey() + "\n\t\nNOTE: All options other than \"Done\" and \"Back\" will update any score boards on the region set to listen to this server.", ["Back", "Clear Scores", "Done", "Get Scores", "Send Scores", "Setup"], dialog_chan);
+    }
+    llSetTimerEvent(30);
+}
+
+default
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+        if(llGetInventoryType(base_name + "Ranking" + version) == INVENTORY_SCRIPT && llGetInventoryType(base_name + "DQ List" + version) == INVENTORY_SCRIPT)
+        {
+            server_chan = -221664; //Replace with a more securely generated channel number.
+            llListen(server_chan,"", NULL_KEY, "");
+            menu_user = NULL_KEY;
+            mode = 0;
+            last_cmd = "";
+            dialog_chan = -1470; //Replace with a more securely generated channel number.
+            llListen(dialog_chan, "", llGetOwner(), "");
+            llResetOtherScript(base_name + "Ranking" + version);
+            llResetOtherScript(base_name + "DQ List" + version);
+        }
+        else
+        {
+            state wait;
+        }
+    }
+    touch_start(integer total_number) 
+    {
+        if(llDetectedKey(0) == llGetOwner())
+        {
+            if(llDetectedKey(0) == menu_user)
+            {
+                mode = 0;
+                last_cmd = "";
+                dialog();
+            }
+            else
+            {
+                if(llDetectedKey(0) == llGetOwner())
+                {
+                    if(menu_user != llGetOwner())
+                    {
+                        if(menu_user != NULL_KEY)
+                        {
+                            llRegionSayTo(menu_user, 0, "The server owner has taken control of the menu. Please wait until they are done.");
+                        }
+                    }
+                    menu_user = llDetectedKey(0);
+                    menu_listener = llListen(dialog_chan, "", menu_user, "");
+                    mode = 0;
+                    dialog();
+                }
+                else
+                {
+                    if(menu_user == NULL_KEY)
+                    {
+                        menu_user = llDetectedKey(0);
+                        menu_listener = llListen(dialog_chan, "", menu_user, "");
+                        mode = 0;
+                        last_cmd = "";
+                        dialog();
+                    }
+                    else
+                    {
+                        llRegionSayTo(llDetectedKey(0), 0, "The server owner is currently using the menu. Please wait until they are done.");
+                    }
+                }
+            }
+        }
+        else
+        {
+            llRegionSayTo(llDetectedKey(0), 0, "Score server menu access denied.");
+        }
+    }
+    listen(integer chan, string name, key id, string msg)
+    {
+        if(chan == dialog_chan && id == menu_user)
+        {
+            if(mode == 0)
+            {
+                if(msg == "Score Admin")
+                {
+                    mode = 2;
+                    dialog();
+                }
+                else if(msg == "DQ Admin")
+                {
+                    last_cmd = msg;
+                    mode = 1;
+                    dialog();
+                }
+                else if(msg == "Reset Server")
+                {
+                    last_cmd = msg;
+                    llMessageLinked(llGetLinkNumber(), 0, "clear all dq", menu_user);
+                    llMessageLinked(llGetLinkNumber(), 0, "clear all scores", menu_user);
+                    string base_name = "Golf Score Server - ";
+                    string version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+                    llRegionSayTo(menu_user, 0, "All score and disqulification data has been cleared.");
+                    valid_desc = " UNDEFINED";
+                    mode = 0;
+                    dialog();
+                }
+                else if(msg == "Memory")
+                {
+                    last_cmd = msg;
+                    llMessageLinked(llGetLinkNumber(), 0, "display score memory", menu_user);
+                    llMessageLinked(llGetLinkNumber(), 0, "display dq memory", menu_user);
+                    mode = 0;
+                    dialog();
+                }
+                else if(msg == "Description")
+                {
+                    last_cmd = msg;
+                    llTextBox(menu_user, "\nInput the exact required score card description this server will work with.\n\nNOTE: Please ensure that you enter the exact text from the description line of the score card. Please ensure your descriptions do not contain either the \"|\" or \"\\n\" in them as these are not allowable within descriptions. This score server will only work with cards with the exact description line provided.", dialog_chan);
+                    llSetTimerEvent(30);
+                }
+                else
+                {
+                    if(last_cmd == "Description")
+                    {
+                        integer desc_len = llStringLength(llStringTrim(msg, STRING_TRIM));
+                        integer bad_string_1 = llSubStringIndex(msg, "|");
+                        integer bad_string_2 = llSubStringIndex(msg, "\\n");
+                        if(desc_len < 128 && desc_len > 0 && bad_string_1 == -1 && bad_string_2 == -1)
+                        {
+                            valid_desc = msg;
+                            llRegionSayTo(menu_user, 0, "Required score card description has been updated to \"" + msg + "\".");
+                        }
+                        else
+                        {
+                            string desc_error = "Unable to update the required score card description for the following reason(s):\n";
+                            if(desc_len < 1)
+                            {
+                                desc_error += "\tThe text entered was all spaces or otherwise blank.\n";
+                            }
+                            if(bad_string_1 > -1 || bad_string_2 > -1)
+                            {
+                                desc_error += "\tThe text entered contains at least one invalid character.\n";
+                            }
+                            if(desc_len > 127)
+                            {
+                                desc_error += "\tThe text entered is too long.\n";
+                            }
+                            llRegionSayTo(menu_user, 0, desc_error + "Please correct the issue(s) and try again.");
+                        }
+                        last_cmd = "";
+                        dialog();
+                    }
+                }
+            }
+            if(mode == 1)
+            {
+                if(msg == "Clear DQs")
+                {
+                    last_cmd = msg;
+                    llMessageLinked(llGetLinkNumber(), 0, "clear dq list", menu_user);
+                    dialog();
+                }
+                else if(msg == "Get DQs")
+                {
+                    last_cmd = msg;
+                    llMessageLinked(llGetLinkNumber(), 0, "show dq list", menu_user);
+                    dialog();
+                }
+                else if(msg == "DQ Player")
+                {
+                    last_cmd = msg;
+                    llTextBox(menu_user, "\nInput the UUID of the player that you wish to disqualify from ranking or being listed on any leader boards connected to this score server.\n\nNOTE: Only enter a valid avatar UUID. Avatar names and display names will not work. Submitting a UUID will trigger an update for any leader boards in the region, though in some cases leader boards may still need to be reset for the change to take effect.", dialog_chan);
+                    llSetTimerEvent(30);
+                }
+                else if(msg == "Allow Player")
+                {
+                    last_cmd = msg;
+                    llTextBox(menu_user, "\nInput the UUID of the disqualified player that you wish to allow to have their scores ranked and listed on any leader boards connected to this score server.\n\nNOTE: Only enter a valid avatar UUID. Avatar names and display names will not work.", dialog_chan);
+                    llSetTimerEvent(30);
+                }
+                else
+                {
+                    if(last_cmd == "DQ Player")
+                    {
+                        last_cmd = "";
+                        llMessageLinked(llGetLinkNumber(), 0, "dq+ " + msg, menu_user);
+                        mode = 1;
+                        dialog();
+                    }
+                    else if(last_cmd == "Allow Player")
+                    {
+                        last_cmd = "";
+                        llMessageLinked(llGetLinkNumber(), 0, "dq- " + msg, menu_user);
+                        mode = 1;
+                        dialog();
+                    }
+                }
+            }
+            if(mode == 2)
+            {
+                if(msg == "Get Scores")
+                {
+                    last_cmd = msg;
+                    llMessageLinked(llGetLinkNumber(), 0, "show score list", menu_user);
+                    dialog();
+                }
+                else if(msg == "Send Scores")
+                {
+                    last_cmd = msg;
+                    llMessageLinked(llGetLinkNumber(), 0, "send score data", menu_user);
+                    dialog();
+                }
+                else if(msg == "Setup")
+                {
+                    last_cmd = msg;
+                    llTextBox(menu_user, "Input the maximum number of players you wish to display on the score boards in this region.\n\nNOTE: You must set this to a number from 3 to 100.", dialog_chan);
+                    llSetTimerEvent(30);
+                }
+                else if(msg == "Clear Scores")
+                {
+                    last_cmd = msg;
+                    llRegionSayTo(menu_user, 0, "Clearing all score data.");
+                    llMessageLinked(llGetLinkNumber(), 0, "clear all scores", menu_user);
+                    dialog();
+                }
+                else
+                {
+                    if(last_cmd == "Setup")
+                    {
+                        last_cmd = "";
+                        llMessageLinked(llGetLinkNumber(), 0, "np= " + msg, menu_user);
+                        mode = 2;
+                        dialog();
+                    }
+                }
+            }
+            if(msg == "Back")
+            {
+                last_cmd = msg;
+                mode = 0;
+                dialog();
+            }
+            if(msg == "Done")
+            {
+                last_cmd = msg;
+                llSetTimerEvent(0);
+                llListenRemove(menu_listener);
+                menu_user = NULL_KEY;
+                mode = 0;
+            }
+        }
+        if(chan == server_chan)
+        {
+            if(llGetSubString(llToLower(msg), 0, 5) == "check|")
+            {
+                string my_desc = llStringTrim(llGetSubString(msg, 6, -1), STRING_TRIM);
+                if(my_desc == valid_desc)
+                {
+                    llRegionSayTo(llGetOwnerKey(id), 0, "Your score card is up to date.");
+                }
+                else
+                {
+                    llRegionSayTo(llGetOwnerKey(id), 0, "Your score card is not up to date. Please obtain an updated score card to have future scores recorded and displayed on the leader board. Contact secondlife:///app/agent/" + (string)llGetOwner() + "/about if you feel this message has been given in error.");
+                }
+            }
+            else if(msg == "Score Request")
+            {
+                llMessageLinked(llGetLinkNumber(), 0, "send all scores", llGetKey());
+            }
+            else
+            {
+                if(msg != last_msg)
+                {
+                    string my_desc = llStringTrim(llList2String(llParseString2List(msg, ["|"], []), -2), STRING_TRIM);
+                    if(my_desc == valid_desc)
+                    {
+                        string player_id = (string)llGetOwnerKey(id);
+                        llMessageLinked(llGetLinkNumber(), 0, "dq? " + player_id + "|" + msg, llGetKey());
+                    }
+                    else
+                    {
+                        llRegionSayTo(llGetOwnerKey(id), 0, "Your score could not be recorded because your score card is not up to date. Please obtain an updated score card to have future scores recorded and displayed on the leader board. Contact secondlife:///app/agent/" + (string)llGetOwner() + "/about if you feel this message has been given in error.");
+                    }
+                    last_msg = msg;
+                }
+            }
+        }
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        llListenRemove(menu_listener);
+        menu_user = NULL_KEY;
+        last_cmd = "";
+        mode = 0;
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER)
+        {
+            llResetScript();
+        }
+        if(change & CHANGED_INVENTORY)
+        {
+            string base_name = "Golf Score Server - ";
+            string version = " " + llStringTrim(llGetSubString(llGetScriptName(), 28, -1), STRING_TRIM);
+            if(llGetInventoryType(base_name + "DQ List" + version) != INVENTORY_SCRIPT && llGetInventoryType(base_name + "Ranking" + version) != INVENTORY_SCRIPT)
+            {
+                state wait;
+            }
+        }
+    }
+}
+state wait
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
