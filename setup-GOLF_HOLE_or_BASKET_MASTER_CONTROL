@@ -1,0 +1,11 @@
+# Golf Hole/Basket Master Control by C3
+# NOTE: Lines that are blank or star with # are not used by the script.
+# This object can be controlled by you and up to five (5) other authorized users that you list below.
+# You can list authorized users below by using their avatar name, profile URI, or UUID.
+# Display names can not be used to list an authorized user.
+# To avoid potential issues you must make sure to list only one authorized user per line.
+# Avatars that are listed below more than one time will only be added to the authorized user list once.
+# If any UUID or name is not verifiable as an avatar then the script will skip it after a short delay.
+# Only the first five (5) verifiable avatars in this list will be registered as authorized users.
+# After the first five (5) avatars have been added to the authorized user list the list will be full.
+# Once the list is full or the script reaches the end of this notecard it will be ready for use.
