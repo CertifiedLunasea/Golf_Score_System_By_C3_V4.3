@@ -1,0 +1,83 @@
+GOLF SCORE CARD HELP
+
+This is an automatic golf score card that works with the >(O.o)< and ((C.C.)) golf club Systems as well as the >(O.o)< Disc Golf system on automatic however you can use it manually if needed using the menu.
+Every time you hit a ball, swing your club, or throw a disc 1 stroke will be added to your score for that hole.
+Once you sink the ball into a hole, or place the disc in the basket that hole/basket is finalized and the score starts at the next hole/basket.
+Courses may set penalty amounts differently so check the course rules to make sure you are familiar with them.
+Some regions are better than others regarding chat lag. If you do get chat lag you'll need to give the card more time to be ready or process score data.
+In some cases regions that experience chat lag may also fail to send scores to Golf Score Servers. If you experience this contact the course owner.
+
+
+Recreational Mode
+
+    Menu Options are as follows:
+
+        Help = Get this help notecard.
+        Front 9 = Play only on holes 1 through 9.
+        Back 9 = Play only on holes 10 through 18.
+        Plus (+) = Add a stroke to the current hole/basket score.
+        Minus (-) = Take a stroke off the current hole/basket score.
+        Score = Print your current score card to local chat.
+        Reset = Reset the score card.
+        Landmark = Get the course landmark.
+        Exit = Exit the menu.
+    
+    Recreational mode is compatible with the >(O.o)<  and ((C.C.)) golf clubs and the >(O.o)< Disc Golf discs.
+    If your ball/disc lands in the water you will get a penalty.
+    The scorecard has a range indicator on the top right of the card that changes depending on if it is or is not permitted to to swing your club or throw a disc.
+    If the range indicator has a green check mark then you are within range to swing your club or throw a disc.
+    If the range indicator has red circle with a line through it then you may be too far away from the tee/ball/disc or you may not be on the correct green.
+    Once all holes/baskets on the scorecard are completed your card data will be printed to local chat.
+    You must complete all holes/baskets labeled on your scorecard before your score data will be sent to the recreational server.
+    Before selecting a new game type or starting a new game you should first reset the score card using the reset option in the menu.
+    Note: Recreational scores will not be sent to the recreational score server under the following conditions:
+        - If you use the Minus (-) option in the menu.
+        - If you move the ball/disc and attempt to play from the new location.
+        - if your ball/disc is destroyed in any way.
+        - if you drop a new ball/disc and attempt to play from its location.
+        - If your ball/disc goes into the wrong hole/basket.
+        - If you fail to start from a tee.
+
+
+Tournament Mode
+
+    Menu Options are as follows:
+    
+        Help = Get the help notecard.
+        Score = Print your current score card to local chat.
+        Landmark = Get the course landmark.
+        Exit = Exit the menu.
+
+    Contest mode is compatible with >(O.o)<  or ((C.C.)) golf clubs and the >(O.o)< Disc Golf discs.
+    Please turn your trails to off because trails cause lag and add more prims to detect when scanning for the ball/disc.
+    If your ball/disc lands in the water you will get a penalty.
+    The scorecard has a range indicator on the top right of the card that changes depending on if it is or is not permitted to to swing your club or throw a disc.
+    If the range indicator has a green check mark then you are within range to swing your club or throw a disc.
+    If the range indicator has red circle with a line through it then you may be too far away from the tee/ball/disc or you may not be on the correct green.
+    If you don't use the correct tee to start a hole/basket you will get a penalty.
+    If you take a swing or throw a disc while you are too far away from the ball or disc you will get a penalty.
+    Once all holes/baskets on the scorecard are completed your card data will be printed to local chat.
+    You must complete all tournament holes/baskets labeled on your scorecard before your score data will be sent to the tournament server.
+
+
+Score Colors
+
+    The scores on your card are colored according to their relation to par.
+
+        For each hole the colors are as follows:
+    
+            Pink                for a hole/basket in one (regardless of Par)
+            Yellow             for Double Eagle/Albatross (3 under Par)
+            Orange           for Eagle (2 under Par)
+            Green             for Birdie (1 under Par)
+            Blue                for Par
+            Red                 for Bogey, Double Bogey, etc. (Any scores over Par)
+
+    
+    
+        For each half of the course the score totals are colored as follows:
+    
+            Blue                for Par
+            Red                 for over Par
+            Green             for under Par
+
