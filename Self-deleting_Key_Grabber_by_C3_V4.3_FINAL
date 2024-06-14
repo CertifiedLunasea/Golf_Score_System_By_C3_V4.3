@@ -1,0 +1,38 @@
+default
+{
+    state_entry()
+    {
+        if(llGetObjectPrimCount(llGetKey()) > 1)
+        {
+            integer tee_prim = -999;
+            integer i;
+            for(i = 0; i < llGetInventoryNumber(INVENTORY_SCRIPT); i++)
+            {
+                if(llSubStringIndex(llGetInventoryName(INVENTORY_SCRIPT, i), "Omni-Tee") != -1 && tee_prim == -999) //Ensure to replace "Omni-Tee" with the base name of your Omni-Tee script.
+                {
+                    integer x;
+                    for(x = 0; x < llGetObjectPrimCount(llGetKey())+1; x++)
+                    {
+                        if(llToLower(llStringTrim(llGetLinkName(x), STRING_TRIM)) == "tee" && tee_prim == -999)
+                        {
+                            tee_prim = x;
+                        }
+                    }
+                }
+            }
+            if(tee_prim != -999)
+            {
+                llSay(0, (string)llGetLinkKey(tee_prim));
+            }
+            else
+            {
+                llSay(0, (string)llGetLinkKey(1));
+            }
+        }
+        else
+        {
+            llSay(0, (string)llGetKey());
+        }
+        llRemoveInventory(llGetScriptName());
+    }
+}
