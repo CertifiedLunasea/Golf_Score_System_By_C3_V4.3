@@ -1,0 +1,864 @@
+key display_sprites_img = NULL_KEY; //Replace with a UUID that references a sprite texture for primary UI elements with numbers 0-3 on the top row, numbers 4-7 on the second row, numbers 8-9 in the first two columns and the word MENU spanning the last two columns of the third row, and 3 ball images on the fourth row where column one is blank, column 2 has a symbol indicating not to swing, and column 3 has a symbol indicating players may swing. The last column in row 4 must be blank.
+key last_detected_object_key;
+key PBID;
+key nc_query;
+float my_tee_distance = 1000;
+float my_object_distance = 1000;
+float scan_distance = 2;
+string rec_mode = "fc";
+string pass;
+vector object_pos;
+integer contest_completed = 0;
+integer missing = 0;
+integer hit = 0;
+integer hole = 1;
+integer golf_listen;
+integer COMMAND_CHANNEL = -13698;
+integer menu_handle;
+integer range_finder;
+integer menu_button;
+integer sf9 = FALSE;
+integer tournament = FALSE;
+integer adjusted = FALSE;
+integer timed_check = 0;
+integer nc_line;
+
+string ConvertWallclockToTime()
+{
+    integer now = (integer)llGetWallclock();
+    integer seconds = now % 60;
+    integer minutes = ((now - seconds) % 3600) / 60;
+    integer hours = (now - minutes - seconds) / 3600;
+    return llGetSubString("0" + (string)hours, -2, -1) + ":" 
+        + llGetSubString("0" + (string)minutes, -2, -1) + ":" 
+        + llGetSubString("0" + (string)seconds, -2, -1);
+}
+string right(string src, string divider)
+{
+    integer index = llSubStringIndex( src, divider );
+    if(~index)
+    {
+        return llDeleteSubString( src, 0, index + llStringLength(divider) - 1);
+    }
+    return src;
+}
+string left(string src, string divider)
+{
+    integer index = llSubStringIndex( src, divider );
+    if(~index)
+    {
+        return llDeleteSubString( src, index, -1);
+    }
+    return src;
+}
+integer normalize_value(string value)
+{
+    if((integer)value < 0)
+    {
+        value = (string)llAbs((integer)value);
+    }
+    if((integer)value > 99)
+    {
+        value = "99";
+    }
+    return (integer)value;
+}
+init()
+{
+    sf9 = FALSE;
+    integer x;
+    for(x = 1; x < 19; x++)
+    {
+        llLinksetDataWriteProtected("SCORE" + (string)x, "0", pass);
+    }
+    llSetLinkPrimitiveParamsFast(menu_button, [PRIM_TEXTURE, ALL_SIDES, display_sprites_img, <0.50, 0.25, 0>, <0.250, -0.125, 0>, 0]);
+    llSetLinkPrimitiveParamsFast(range_finder, [PRIM_TEXTURE, ALL_SIDES, display_sprites_img, <0.25, 0.25, 0>, <-0.375, -0.375, 0>, 0,PRIM_COLOR, ALL_SIDES, <1.000, 1.000, 1.000>, 1]);
+    llMessageLinked(llGetLinkNumber(), -9876, "initialize", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+}
+check_in()
+{
+    timed_check = 0;
+    string gs = "";
+    string s_type = "";
+    if(tournament == TRUE)
+    {
+        gs = "TPS";
+        s_type = "tournament";
+    }
+    else if(rec_mode == "fc")
+    {
+        gs = "RFC";
+        s_type = "recreational full round";
+    }
+    else if(rec_mode == "f9")
+    {
+        gs = "RF9";
+        s_type = "recreational front nine";
+    }
+    else if(rec_mode == "b9")
+    {
+        gs = "RB9";
+        s_type = "recreational back nine";
+    }
+    if(gs != "" && (integer)llLinksetDataReadProtected(gs, pass) != 0)
+    {
+        llRegionSay((integer)llLinksetDataReadProtected(gs, pass), "check|" + llGetObjectDesc());
+    }
+    else
+    {
+        llOwnerSay("Your score may not be able to be recorded or shown on a leader board because the " + s_type + " score server has not been defined by the seller of this score card.");
+    }
+}
+set_score(integer this_hole)
+{
+    integer score_val = (integer)llLinksetDataReadProtected("SCORE" + (string)this_hole, pass);
+    integer par_val = (integer)llLinksetDataReadProtected("PAR" + (string)this_hole, pass);
+    if(par_val > 0)
+    {
+        integer link_num = -999;
+        integer i;
+        for(i = 1; i < llGetNumberOfPrims()+1; i++)
+        {
+            if(llToLower(llStringTrim(llGetLinkName(i), STRING_TRIM)) == "hole" + (string)this_hole)
+            {
+                link_num = i;
+                integer tens = -1;
+                integer ones = -1;
+                if(score_val > 9)
+                {
+                    tens = llFloor(score_val/10);
+                    ones = score_val%10;
+                }
+                else
+                {
+                    ones = score_val;
+                }
+                llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, 0, display_sprites_img, <0.25, 0.25, 0>, <GetU(tens), GetV(tens), 0>, 0, PRIM_TEXTURE, 3, display_sprites_img, <0.25, 0.25, 0>, <GetU(ones), GetV(ones), 0>, 0]);
+            }
+        }
+        for(i = 1; i < llGetNumberOfPrims()+1; i++)
+        {
+            if(llToLower(llGetLinkName(i)) == "f9" && this_hole < 10)
+            {
+                score_val = 0;
+                par_val = 0;
+                integer x;
+                for(x = 1; x < 10; x++)
+                {
+                    if((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) > 0)
+                    {
+                        par_val += (integer)llLinksetDataReadProtected("PAR" + (string)x, pass);
+                        score_val += (integer)llLinksetDataReadProtected("SCORE" + (string)x, pass);
+                    }
+                }
+                integer tens = -1;
+                integer ones = -1;
+                if(score_val > 9)
+                {
+                    tens = llFloor(score_val/10);
+                    ones = score_val%10;
+                }
+                else
+                {
+                    ones = score_val;
+                }
+                llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, 0, display_sprites_img, <0.25, 0.25, 0>, <GetU(tens), GetV(tens), 0>, 0, PRIM_TEXTURE, 3, display_sprites_img, <0.25, 0.25, 0>, <GetU(ones), GetV(ones), 0>, 0]);
+            }
+            if(llToLower(llGetLinkName(i)) == "b9" && this_hole > 9)
+            {
+                score_val = 0;
+                par_val = 0;
+                integer x;
+                for(x = 1; x < 19; x++)
+                {
+                    if((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) > 0)
+                    {
+                        par_val += (integer)llLinksetDataReadProtected("PAR" + (string)x, pass);
+                        score_val += (integer)llLinksetDataReadProtected("SCORE" + (string)x, (string)pass);
+                    }
+                }
+                integer tens = -1;
+                integer ones = -1;
+                if(score_val > 9)
+                {
+                    tens = llFloor(score_val/10);
+                    ones = score_val%10;
+                }
+                else
+                {
+                    ones = score_val;
+                }
+                llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, 0, display_sprites_img, <0.25, 0.25, 0>, <GetU(tens), GetV(tens), 0>, 0, PRIM_TEXTURE, 3, display_sprites_img, <0.25, 0.25, 0>, <GetU(ones), GetV(ones), 0>, 0]);
+            }
+        }
+    }
+}
+float GetU(integer num)
+{
+    float u;
+    if(num == 0 || num == 4 || num == 8)
+    {
+        u = -0.375;
+    }
+    else if(num == 1 || num == 5 || num == 9)
+    {
+        u = -0.125;
+    }
+    else if(num == 2 || num == 6)
+    {
+        u = 0.125;
+    }
+    else if(num == 3 || num == 7)
+    {
+        u = 0.375;
+    }
+    else if(num == -1)
+    {
+        u = 0.375;
+    }
+    return u;
+}
+float GetV(integer num)
+{
+    float v;
+    if(num == 0 || num == 1 || num == 2 || num == 3)
+    {
+        v = 0.375;
+    }
+    else if(num == 4 || num == 5 || num == 6 || num == 7)
+    {
+        v = 0.125;
+    }
+    else if(num == 8 || num == 9)
+    {
+        v = -0.125;
+    }
+    else if(num == -1)
+    {
+        v = -0.375;
+    }
+    return v;
+}
+default
+{
+    on_rez(integer params)
+    {
+        llResetScript();
+    }
+    link_message(integer sender, integer num, string msg, key id)
+    {
+        pass = "the_password_to_get_access"; //Replace this with some reasonably secure method of generating a password for llLinksetData* functions.
+        if(sender == llGetLinkNumber() && num == -9876 && id == llGetLinkKey(llGetLinkNumber()) && msg == "game_on") //Replace -9876 with a more securely generated number.
+        {
+            tournament = FALSE;
+            if(llToLower(llLinksetDataReadProtected("contest", pass)) == "1")
+            {
+                tournament = TRUE;
+            }
+            integer i;
+            for(i = 1; i < llGetNumberOfPrims()+1; i++)
+            {
+                if(llToLower(llStringTrim(llGetLinkName(i), STRING_TRIM)) == "menu")
+                {
+                    menu_button = i;
+                }
+                else if(llToLower(llStringTrim(llGetLinkName(i), STRING_TRIM)) == "rangefinder")
+                {
+                    llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, 0, display_sprites_img, <0.25, 0.25, 0>, <GetU(0), GetV(-1), 0>, 0]);
+                        range_finder = i;
+                }
+            }
+            init();
+            state running;
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
+state running
+{
+    state_entry()
+    {
+        missing = 0;
+        object_pos = <-999, -999, -999>;
+        COMMAND_CHANNEL = -13698; //Replace with some more securely and/or randomly generated channel.
+        golf_listen = llListen(1112223334,"", NULL_KEY, "");
+        menu_handle = llListen(COMMAND_CHANNEL,"", llGetOwner(), "");
+        llAllowInventoryDrop(FALSE);
+        integer x = 1;
+        if((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) < 1)
+        {
+            while((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) < 1 && x < 19)
+            {
+                x++;
+            }
+        }
+        hole = x;
+        llMessageLinked(llGetLinkNumber(), -9876, "distance_check" + (string)hole, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+        if(tournament == TRUE)
+        {
+            llMessageLinked(llGetLinkNumber(), -9876, "tournament_start" +(string)hole, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+            my_object_distance=1000;
+            my_tee_distance=1000;
+        }
+        else
+        {
+            rec_mode = "fc";
+            adjusted = FALSE;
+            string ready_msg = "Grab your clubs, it's tee time.";
+            if(llToLower(llLinksetDataReadProtected("golftoken", pass)) == "disc")
+            {
+                ready_msg = "Get your discs and prepare to tee off.";
+            }
+            llOwnerSay(ready_msg);
+        }
+        check_in();
+        sf9 = FALSE;
+        PBID = NULL_KEY;
+        last_detected_object_key = PBID;
+        llSetTimerEvent(0.25);
+    }
+    attach(key id)
+    {
+        if(id)
+        {
+            timed_check = 1;
+        }
+    }
+    timer()
+    {
+        if(timed_check > 0)
+        {
+            timed_check++;
+            if(timed_check >= 30)
+            {
+                check_in();
+            }
+        }
+        llMessageLinked(llGetLinkNumber(), -9876, "distance_check" + (string)hole + " " + (string)object_pos, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+        if(hit < 1)
+        {
+            key tee_id = (key)llLinksetDataReadProtected("TEE" + (string)hole, pass);
+            vector av_pos = llList2Vector(llGetObjectDetails(llGetOwner(), [OBJECT_POS]), 0);
+            vector av_size = llGetAgentSize(llGetOwner());
+            vector scan_pos = <av_pos.x, av_pos.y, av_pos.z-(av_size.z/2)>;
+            my_tee_distance = llVecDist(scan_pos, llList2Vector(llGetObjectDetails(tee_id, [OBJECT_POS]), 0));
+            if(my_tee_distance <= scan_distance)
+            {
+                llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(2), GetV(-1), 0>, 0]);
+            }
+            else
+            {
+                llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(1), GetV(-1), 0>, 0]);
+            }
+        }
+        else
+        {
+            if(last_detected_object_key != NULL_KEY)
+            {
+                list object_details = llGetObjectDetails(last_detected_object_key, [OBJECT_POS, OBJECT_PHYSICS]);
+                if(llGetListLength(object_details) > 0)
+                {
+                    if(object_pos == <-999, -999, -999> && llList2Integer(object_details, 1) == FALSE)
+                    {
+                        object_pos = llList2Vector(object_details, 0);
+                    }
+                    missing = 0;
+                    vector av_pos = llList2Vector(llGetObjectDetails(llGetOwner(), [OBJECT_POS]), 0);
+                    vector av_size = llGetAgentSize(llGetOwner());
+                    vector scan_pos;
+                    if(scan_distance == 5 || hit == 0)
+                    {
+                        scan_pos = <av_pos.x, av_pos.y, av_pos.z-(av_size.z/2)>;
+                    }
+                    else
+                    {
+                        rotation av_rot = llList2Rot(llGetObjectDetails(llGetOwner(), [OBJECT_ROT]), 0);
+                        scan_pos = <av_pos.x, av_pos.y, av_pos.z-(av_size.z/2)>+(<scan_distance*0.5, 0, 0>*av_rot);
+                    }
+                    my_object_distance = 1000;
+                    if(object_pos == llList2Vector(object_details, 0))
+                    {
+                        my_object_distance = llVecDist(scan_pos, object_pos);
+                    }
+                    if(my_object_distance <= scan_distance)
+                    {
+                        llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(2), GetV(-1), 0>, 0]);
+                    }
+                    else
+                    {
+                        llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(1), GetV(-1), 0>, 0]);
+                    }
+                }
+                else
+                {
+                    if(missing < 12)
+                    {
+                        missing++;
+                    }
+                    else
+                    {
+                        my_object_distance = 1000;
+                        llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(1), GetV(-1), 0>, 0]);
+                    }
+                }
+            }
+            else
+            {
+                missing = 0;
+                llSensor("Golf " + llLinksetDataReadProtected("golftoken", pass), "", SCRIPTED|ACTIVE|PASSIVE, 95, PI);
+            }
+        }
+    }
+    sensor(integer detected)
+    {
+        integer c;
+        for(c = 0; c < detected; c++)
+        {
+            if(llDetectedName(c) == "Golf " + llLinksetDataReadProtected("golftoken", pass) && llDetectedOwner(c) == llGetOwner() && last_detected_object_key == NULL_KEY && llDetectedKey(c) != PBID)
+            {
+                last_detected_object_key = llDetectedKey(c);
+            }
+        }
+    }
+    no_sensor()
+    {
+        my_tee_distance = 1000;
+        my_object_distance = 1000;
+        llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(1), GetV(-1), 0>, 0]);
+    }
+    touch_start(integer total_number)
+    {
+        if(llDetectedKey(0) == llGetOwner() && llDetectedLinkNumber(0) == menu_button)
+        {
+            if(tournament == FALSE)
+            {
+                string goal = llToLower(llLinksetDataReadProtected("golftarget", pass));
+                llDialog(llGetOwner(), "\nRECREATIONAL PLAY\n\t\nPlease choose one of the following options:\nHelp = Get the help notecard.\nFront 9 = Play only on " + goal + "s 1 through 9.\nBack 9 = Play only on " + goal + "s 10 through 18.\nPlus (+) = Add a stroke to the current " + goal + " score.\nMinus (-) = Take a stroke off the current " + goal + " score.\nScore = Print your current score card to local chat.\nReset = Reset the score card.\nLandmark = Get the course landmark.\nExit = Exit the menu.\n",["Reset","Landmark","Exit","Plus (+)","Minus (-)","Score","Help","Front 9","Back 9"], COMMAND_CHANNEL);
+            }
+            else
+            {
+                llDialog(llGetOwner(), "\nTOURNAMENT PLAY\n\t\nPlease choose one of the following options:\nHelp = Get the help notecard.\nScore = Print your current score card to local chat.\nLandmark = Get the course landmark.\nExit = Exit the menu.\n", ["Score", "Landmark", "Exit", "Help"], COMMAND_CHANNEL);
+            }
+        }
+    }
+    listen(integer channel, string name, key id, string message)  
+    {
+        if(channel == COMMAND_CHANNEL && id == llGetOwner())
+        {
+            if(message == "Help" && llGetInventoryType("Golf Score Card Help") == INVENTORY_NOTECARD)
+            {
+                llGiveInventory(llGetOwner(),"Golf Score Card Help");
+            }
+            if(message == "Landmark")
+            {
+                if(llGetInventoryNumber(INVENTORY_LANDMARK) > 0) 
+                {
+                    llGiveInventory(llGetOwner(), llGetInventoryName(INVENTORY_LANDMARK, 0));
+                }
+            }
+            if(message == "Score")
+            {
+                llMessageLinked(llGetLinkNumber(), -9876, "print_scores", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+            }
+            if(message == "Back 9" && tournament == FALSE)
+            {
+                hole = 10;
+                integer x;
+                for(x = 1; x < 19; x++)
+                {
+                    llLinksetDataWriteProtected("SCORE" + (string)x, "0", pass);
+                    if(x < 10)
+                    {
+                        llLinksetDataWriteProtected("PAR" + (string)x, "0", pass);
+                    }
+                    else
+                    {
+                        string dpx = llLinksetDataReadProtected("DPAR" + (string)x, pass);
+                        llLinksetDataWriteProtected("PAR" + (string)x, dpx, pass);
+                    }
+                }
+                init();
+                x = 10;
+                if((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) < 1)
+                {
+                    while((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) < 1 && x < 19)
+                    {
+                        x++;
+                    }
+                }
+                if(x < 19)
+                {
+                    sf9 = FALSE;
+                    hole = x;
+                    llMessageLinked(llGetLinkNumber(), -9876, "distance_check" + (string)hole, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                    rec_mode = "b9";
+                    adjusted = FALSE;
+                    hit = 0;
+                    llOwnerSay("Playing the back 9. Tee off at hole #" + (string)x + ".");
+                    check_in();
+                    llSetTimerEvent(0.25);
+                }
+                else
+                {
+                    llMessageLinked(llGetLinkNumber(), -9876, "no_goals", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                }
+            }
+            if(message == "Front 9" && tournament == FALSE)
+            {
+                hole = 1;
+                integer x;
+                for(x = 1; x < 19; x++)
+                {
+                    llLinksetDataWriteProtected("SCORE" + (string)x, "0", pass);
+                    if(x < 10)
+                    {
+                        string dpx = llLinksetDataReadProtected("DPAR" + (string)x, pass);
+                        llLinksetDataWriteProtected("PAR" + (string)x, dpx, pass);
+                    }
+                    else
+                    {
+                        llLinksetDataWriteProtected("PAR" + (string)x, "0", pass);
+                    }
+                }
+                init();
+                x = 1;
+                if((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) < 1)
+                {
+                    while((integer)llLinksetDataReadProtected("PAR" + (string)x, pass) < 1 && x < 10)
+                    {
+                        x++;
+                    }
+                }
+                if(x < 10)
+                {
+                    sf9 = FALSE;
+                    hole = x;
+                    llMessageLinked(llGetLinkNumber(), -9876, "distance_check" + (string)hole, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                    rec_mode = "f9";
+                    adjusted = FALSE;
+                    hit = 0;
+                    llOwnerSay("Playing the front 9. Tee off at tee #" + (string)x + ".");
+                    check_in();
+                    llSetTimerEvent(0.25);
+                }
+                else
+                {
+                    llMessageLinked(llGetLinkNumber(), -9876, "no_goals", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                }
+            }
+            if(message == "Minus (-)" && tournament == FALSE)
+            {
+                if(hit-1 < 1)
+                {
+                    llOwnerSay("You can't score less than one stroke!");
+                }
+                else
+                {
+                    adjusted = TRUE;
+                    hit--;
+                    llLinksetDataWriteProtected("SCORE" + (string)hole, (string)hit, pass);
+                    set_score(hole);
+                    llMessageLinked(llGetLinkNumber(), -9876, "minus_button", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                }
+            }
+            if(message == "Plus (+)" && tournament == FALSE)
+            {
+                if(hit > 0)
+                {
+                    if(hit < 99)
+                    {
+                        hit++;
+                        llLinksetDataWriteProtected("SCORE" + (string)hole, (string)hit, pass);
+                        set_score(hole);
+                        llMessageLinked(llGetLinkNumber(), -9876, "plus_button", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                    }
+                }
+                else
+                {
+                    llOwnerSay("You can't add strokes before the tee stroke.");
+                }
+            }
+            if(message == "Reset" && tournament == FALSE)
+            {
+                llOwnerSay("Resetting card please wait ...");
+                llMessageLinked(llGetLinkNumber(), -9876, "card_reset", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                llResetScript();
+            }
+        }
+        else if(channel == 1112223334)
+        {
+            string left = left(message,"|");
+            string right = right(message,"|");
+            string farleft = left(right,"|");
+            string farright = right(right,"|");
+            if(left == llGetOwner())
+            {
+                if(farleft == "SWING")
+                {
+                    if(hit < 99)
+                    {
+                        if(hit != 0 && my_object_distance > scan_distance)
+                        {
+                            if(tournament == TRUE && (integer)llLinksetDataReadProtected("BP", pass) > 0)
+                            {
+                                llMessageLinked(llGetLinkNumber(), -9876, "moved_ball_penalty", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                                hit = normalize_value((string)(hit+(integer)llLinksetDataReadProtected("BP", pass)));
+                            }
+                            else if(tournament == FALSE)
+                            {
+                                llMessageLinked(llGetLinkNumber(), -9876, "moved_ball", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                                adjusted = TRUE;
+                            }
+                        }
+                        if(hit == 0 && my_tee_distance > scan_distance)
+                        {
+                            if(tournament == TRUE && (integer)llLinksetDataReadProtected("TP", pass) > 0)
+                            {
+                                llMessageLinked(llGetLinkNumber(), -9876, "false_start_penalty", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                                hit = normalize_value((string)(hit+(integer)llLinksetDataReadProtected("TP", pass)));
+                            }
+                            else if(tournament == FALSE)
+                            {
+                                llMessageLinked(llGetLinkNumber(), -9876, "false_start", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                                adjusted = TRUE;
+                            }
+                        }
+                        hit = normalize_value((string)(hit + 1));
+                        llLinksetDataWriteProtected("SCORE" + (string)hole, (string)hit, pass);
+                        set_score(hole);
+                        scan_distance = 2;
+                    }
+                    object_pos = <-999, -999, -999>;
+                    PBID = last_detected_object_key;
+                    last_detected_object_key = NULL_KEY;
+                }
+                else if(farleft == "UNDERWATER")
+                {
+                    scan_distance = 5;
+                    if(hit < 99 && (integer)llLinksetDataReadProtected("WP", pass) > 0)
+                    {
+                        hit = normalize_value((string)(hit + (integer)llLinksetDataReadProtected("WP", pass)));
+                        llMessageLinked(llGetLinkNumber(), -9876, "water_hazard_penalty", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                        llLinksetDataWriteProtected("SCORE" + (string)hole, (string)hit, pass);
+                        set_score(hole);
+                    }
+                    return;
+                }
+                else if(farleft == "HOLE" && llGetListLength(llParseString2List(message, ["|"], [])) < 4 && llKey2Name(id) != "Golf Ball" && llKey2Name(id) != "Golf Disc")
+                {
+                    object_pos = <-999, -999, -999>;
+                    PBID = NULL_KEY;
+                    last_detected_object_key = PBID;
+                    if(llList2String(llGetObjectDetails((key)llLinksetDataReadProtected("CUP" + (string)hole, pass), [OBJECT_NAME]), 0) != farright && (key)llLinksetDataReadProtected("CUP" + (string)hole, pass) != id)
+                    {
+                        if(tournament == TRUE && (integer)llLinksetDataReadProtected("HP", pass) > 0)
+                        {
+                            if(hit < 99)
+                            {
+                                hit = normalize_value((string)(hit + (integer)llLinksetDataReadProtected("HP", pass)));
+                                llMessageLinked(llGetLinkNumber(), -9876, "wrong_goal_penalty", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                            }
+                        }
+                        else if(tournament == FALSE)
+                        {
+                            llMessageLinked(llGetLinkNumber(), -9876, "wrong_goal" + (string)hole, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                            adjusted = TRUE;
+                        }
+                        llLinksetDataWriteProtected("SCORE" + (string)hole, (string)hit, pass);
+                        set_score(hole);
+                        return;
+                    }
+                    if(hit < 99)
+                    {
+                        llLinksetDataWriteProtected("SCORE" + (string)hole, (string)hit, pass);
+                        set_score(hole);
+                    }
+                    llMessageLinked(llGetLinkNumber(), -9876, "set_color" + (string)hole, llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                    hole++;
+                    if((integer)llLinksetDataReadProtected("PAR" + (string)hole, pass) < 1 && hole < 19)
+                    {
+                        while((integer)llLinksetDataReadProtected("PAR" + (string)hole, pass) < 1 && hole < 19)
+                        {
+                            hole++;
+                        }
+                    }
+                    if(hole > 9)
+                    {
+                        integer pscore = 0;
+                        integer x;
+                        if(sf9 == FALSE)
+                        {
+                            llMessageLinked(llGetLinkNumber(), -9876, "set_colorf9", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                            if(tournament == FALSE && rec_mode == "fc" && (integer)llLinksetDataReadProtected("RF9", pass) != 0 && adjusted == FALSE)
+                            {
+                                for(x = 1; x < 10; x++)
+                                {
+                                    pscore += (integer)llLinksetDataReadProtected("SCORE" + (string)x, pass);
+                                }
+                                if(pscore > 0)
+                                {
+                                    if((integer)llLinksetDataReadProtected("F9P", pass) < (integer)llLinksetDataReadProtected("FCP", pass) && (integer)llLinksetDataReadProtected("B9P", pass) != 0)
+                                    {
+                                        llOwnerSay("Sending scores to the server...");
+                                        string buffer = llKey2Name(llGetOwner()) + "|" + ConvertWallclockToTime() + "|" + llGetDate() + "|" + llGetObjectDesc() + "|";
+                                        llRegionSay((integer)llLinksetDataReadProtected("RF9", pass), buffer + (string)pscore);
+                                        llRegionSay((integer)llLinksetDataReadProtected("RF9", pass), buffer + (string)pscore);
+                                    }
+                                }
+                            }
+                            sf9 = TRUE;
+                        }
+                        if(hole == 19)
+                        {
+                            llMessageLinked(llGetLinkNumber(), -9876, "set_colorb9", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                            if(tournament == FALSE && rec_mode == "fc" && (integer)llLinksetDataReadProtected("RB9", pass) != 0 && adjusted == FALSE)
+                            {
+                                for(x = 10; x < 19; x++)
+                                {
+                                    pscore += (integer)llLinksetDataReadProtected("SCORE" + (string)x, pass);
+                                }
+                                if(pscore > 0)
+                                {
+                                    string buffer = llKey2Name(llGetOwner()) + "|" + ConvertWallclockToTime() + "|" + llGetDate() + "|" + llGetObjectDesc() + "|";
+                                    llRegionSay((integer)llLinksetDataReadProtected("RB9", pass), buffer + (string)pscore);
+                                    llRegionSay((integer)llLinksetDataReadProtected("RB9", pass), buffer + (string)pscore);
+                                }
+                            }
+                        }
+                    }
+                    if(hole > 18)
+                    {
+                        contest_completed = 1;
+                        hole = 19;
+                        sf9 = FALSE;
+                    }
+                    else
+                    {
+                        llOwnerSay("Next Tee off is #"+(string)hole);
+                    }
+                    hit = 0;
+                }
+                if(hole > 18)
+                {
+                    llMessageLinked(llGetLinkNumber(), -9876, "set_colorb9", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                    llOwnerSay("Score card completed.");
+                    llMessageLinked(llGetLinkNumber(), -9876, "print_scores", llGetLinkKey(llGetLinkNumber())); //Replace -9876 with a more securely generated number.
+                    integer thit = 0;
+                    integer i;
+                    for(i = 1; i < 19; i++)
+                    {
+                        thit += (integer)llLinksetDataReadProtected("SCORE" + (string)i, pass);
+                    }
+                    thit = normalize_value((string)thit);
+                    llRegionSay(-11223344,(string)llGetOwner() + ":" + (string)thit);
+                    llRegionSay(-11223344,(string)llGetOwner() + ":" + (string)thit);
+                    llListenRemove(golf_listen);
+                    if(contest_completed == 1)
+                    {
+                        if(adjusted == FALSE)
+                        {
+                            integer t;
+                            integer totalscore;
+                            string buffer = llKey2Name(llGetOwner())+"|";
+                            buffer = buffer + ConvertWallclockToTime() + "|" + llGetDate() + "|";
+                            for(t = 1; t < 19; t++)
+                            {
+                                totalscore = totalscore + (integer)llLinksetDataReadProtected("SCORE" + (string)t, pass);
+                            }
+                            totalscore = normalize_value((string)totalscore);
+                            buffer = buffer + llGetObjectDesc() + "|" + (string)totalscore;
+                            llOwnerSay("Sending scores to the server...");
+                            if(tournament == TRUE)
+                            {
+                                integer comms = (integer)llLinksetDataReadProtected("TPS", pass);
+                                if(comms != 0)
+                                {
+                                    llRegionSay(comms, buffer);
+                                    llRegionSay(comms, buffer);
+                                }
+                                llSetTimerEvent(0);
+                                state finalize;
+                            }
+                            else
+                            {
+                                if(rec_mode == "fc" && (integer)llLinksetDataReadProtected("RFC", pass) != 0)
+                                {
+                                    llRegionSay((integer)llLinksetDataReadProtected("RFC", pass), buffer);
+                                    llRegionSay((integer)llLinksetDataReadProtected("RFC", pass), buffer);
+                                }
+                                else if(rec_mode == "f9" && (integer)llLinksetDataReadProtected("RF9", pass) != 0)
+                                {
+                                    llRegionSay((integer)llLinksetDataReadProtected("RF9", pass), buffer);
+                                    llRegionSay((integer)llLinksetDataReadProtected("RF9", pass), buffer);
+                                }
+                                else if(rec_mode == "b9" && (integer)llLinksetDataReadProtected("RB9", pass) != 0)
+                                {
+                                    llRegionSay((integer)llLinksetDataReadProtected("RB9", pass), buffer);
+                                    llRegionSay((integer)llLinksetDataReadProtected("RB9", pass), buffer);
+                                }
+                            }
+                        }
+                        if(tournament == FALSE)
+                        {
+                            if(adjusted == TRUE)
+                            {
+                                llOwnerSay("NOTE: Scores for this round are ineligible for score server submission due to score alteration or unassessed penalties. Use the help option for more details.");
+                            }
+                            llOwnerSay("Click the menu button and choose the reset option. After the card has been reset you may play a new round or choose other game options from the menu.");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+        if(change & CHANGED_REGION)
+        {
+            check_in();
+        }
+    }
+}
+state finalize
+{
+    state_entry()
+    {
+        llSetTimerEvent(1);
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        llOwnerSay("Done.");
+        llSetLinkPrimitiveParamsFast(range_finder,[PRIM_TEXTURE, -1, display_sprites_img, <0.25, 0.25, 0>, <GetU(0), GetV(-1), 0>, 0]);
+        integer i;
+        for(i = 0; i < llGetInventoryNumber(INVENTORY_SCRIPT); i)
+        {
+            if(llGetInventoryName(INVENTORY_SCRIPT, i) != llGetScriptName())
+            {
+                llRemoveInventory(llGetInventoryName(INVENTORY_SCRIPT, i));
+            }
+            else
+            {
+                i++;
+            }
+        }
+        llRemoveInventory(llGetScriptName());
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llSetTimerEvent(1);
+        }
+    }
+}
