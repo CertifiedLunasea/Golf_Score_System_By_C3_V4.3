@@ -1,0 +1,297 @@
+integer delay;
+integer deadline;
+integer token_check;
+integer nc_line;
+integer run_count;
+integer comms;
+integer handle;
+string token;
+vector picked;
+vector last_picked;
+float range;
+list positions;
+key nc_query;
+key last_detected_token_owner = NULL_KEY;
+key last_detected_token_key = NULL_KEY;
+
+perm_check()
+{
+    if((llGetInventoryPermMask(llGetScriptName(), MASK_NEXT) & (PERM_COPY | PERM_TRANSFER)) == (PERM_COPY | PERM_TRANSFER) || (llGetInventoryPermMask(llGetScriptName(), MASK_NEXT) & (PERM_MODIFY)) == (PERM_MODIFY))
+    {
+        llOwnerSay("Deleting " + llGetScriptName() + " because the permissions were not set properly. Please contact the seller to get a replacement and let them know about this issue.");
+        llRemoveInventory(llGetScriptName());
+    }
+}
+
+default
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        perm_check();
+        positions = [];
+        llListenRemove(handle);
+        token = "Golf Ball";
+        token_check = FALSE;
+        delay = 0;
+        range = 15;
+        if(llGetObjectPrimCount(llGetKey()) > 1)
+        {
+            llOwnerSay("Hole/Basket ID = " + (string)llGetLinkKey(1));
+        }
+        else
+        {
+            llOwnerSay("Hole/Basket ID = " + (string)llGetKey());
+        }
+        if(llGetInventoryType("setup") == INVENTORY_NOTECARD)
+        {
+            nc_line = 0;
+            nc_query = llGetNumberOfNotecardLines("setup");
+        }
+        else
+        {
+            llSetTimerEvent(1);
+        }
+    }
+    collision_start(integer num)
+    {
+        if(llDetectedName(0) == token)
+        {
+            integer valid = TRUE;
+            if(token == "Golf Disc" && llDetectedLinkNumber(0) == LINK_ROOT)
+            {
+                valid = FALSE;
+            }
+            if(valid == TRUE)
+            {
+                llSetTimerEvent(0);
+                last_detected_token_key = llDetectedKey(0);
+                last_detected_token_owner = llDetectedOwner(0);
+                vector pos = llGetPos();
+                string stringPos = (string)pos.x + ", " + (string)pos.y + ", " + (string)pos.z;
+                llSay(13, (string)llDetectedKey(0) + ", " + stringPos );
+                token_check = TRUE;
+                run_count = 0;
+                llSetTimerEvent(1);
+            }
+        }
+    }
+    dataserver(key query, string data)
+    {
+        if(query == nc_query)
+        {
+            integer count = (integer)data;
+            while(nc_line < count)
+            {
+                string line = llGetNotecardLineSync("setup", nc_line);
+                if(line == NAK)
+                {
+                    nc_query = llGetNumberOfNotecardLines("setup");
+                }
+                else
+                {
+                    if(line != EOF)
+                    {
+                        string line = llStringTrim(line, STRING_TRIM);
+                        integer sep = llSubStringIndex(line, "=");
+                        if(llGetSubString(line, 0, 0) != "#" && line != "")
+                        {
+                            if(sep != -1)
+                            {
+                                string name = llToLower(llStringTrim(llGetSubString(line, 0, sep-1), STRING_TRIM));
+                                string value = llToLower(llStringTrim(llGetSubString(line, sep+1, -1), STRING_TRIM));
+                                if(name == "object")
+                                {
+                                    if(llToLower(value) != "")
+                                    {
+                                        if(value == "disc" || value == "golf disc" || value == "golfdisc" || value == "disc golf" || value == "discgolf")
+                                        {
+                                            token = "Golf Disc";
+                                        }
+                                    }
+                                }
+                                if(name == "time")
+                                {
+                                    if(llFabs((float)value) != 0)
+                                    {
+                                        delay = llRound(60*((float)value));
+                                        if(delay < 600)
+                                        {
+                                            delay = 600;//10 minutes.
+                                        }
+                                        if(delay > 2592000)
+                                        {
+                                            delay = 2592000;//43200 minutes (30 days).
+                                        }
+                                    }
+                                    else
+                                    {
+                                        delay = 0;
+                                    }
+                                }
+                                if(name == "range")
+                                {
+                                    if(llFabs((float)value) != 0)
+                                    {
+                                        range = (float)value;
+                                        if(range < 5)
+                                        {
+                                            range = 5;
+                                        }
+                                        if(range > 30)
+                                        {
+                                            range = 30;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        range = 15;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                vector new_pos = (vector)line;
+                                if(new_pos != ZERO_VECTOR && new_pos.x > 0 && new_pos.x < 255 && new_pos.y > 0 && new_pos.y < 255 && new_pos.z > llWater(new_pos) && new_pos.z < 4096 && llGetListLength(positions) < 20 && llListFindList(positions, [new_pos]) == -1)
+                                {
+                                    positions += new_pos;
+                                }
+                            }
+                        }
+                        nc_line++;
+                    }
+                }
+            }
+            perm_check();
+            llListenRemove(handle);
+            integer num_positions = llGetListLength(positions);
+            if(num_positions > 1)
+            {
+                comms = -58764; //Replace with a more securely generated channel number.
+                handle = llListen(comms, "", NULL_KEY, "");
+                positions = llListRandomize(positions, 1);
+                picked = llList2Vector(positions, llRound(llFrand((num_positions-1))));
+                llSetRegionPos(picked);
+                last_picked = picked;
+                if(delay > 0)
+                {
+                    deadline = llGetUnixTime()+delay;
+                }
+            }
+            else
+            {
+                delay = 0;
+                if(num_positions == 1)
+                {
+                    llSetRegionPos(llList2Vector(positions, 0));
+                }
+            }
+            llSetTimerEvent(1);
+        }
+    }
+    listen(integer chan, string name, key id, string msg)
+    {
+        perm_check();
+        if(llGetOwnerKey(id) == llGetOwner() && llStringTrim(llToLower(msg), STRING_TRIM) == "rand_hole_pos")
+        {
+            deadline = llGetUnixTime();
+        }
+    }
+    timer()
+    {
+        llSetTimerEvent(0);
+        if(deadline-llGetUnixTime() <= 0 && llGetListLength(positions) > 1 && deadline != 0)
+        {
+            list agents = llGetAgentList(AGENT_LIST_REGION, []);
+            integer num_agents = llGetListLength(agents);
+            integer count = 0;
+            integer i;
+            for(i = 0; i < num_agents; i++)
+            {
+                key target = llList2Key(agents, i);
+                if(llGetAgentSize(target) != ZERO_VECTOR)
+                {
+                    vector my_pos = llGetPos();
+                    vector target_pos = llList2Vector(llGetObjectDetails(target, [OBJECT_POS]), 0);
+                    if(target_pos != ZERO_VECTOR)
+                    {
+                        if(llVecDist(my_pos, target_pos) <= range)
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+            if(count == 0)
+            {
+                perm_check();
+                positions = llListRandomize(positions, 1);
+                integer num_positions = llGetListLength(positions);
+                while(picked == last_picked)
+                {
+                    picked = llList2Vector(positions, llRound(llFrand((num_positions-1))));
+                }
+                llSetRegionPos(picked);
+                last_picked = picked;
+                if(delay > 0)
+                {
+                    deadline = llGetUnixTime()+delay;
+                }
+                else
+                {
+                    deadline = 0;
+                }
+            }
+        }
+        if(token_check == TRUE)
+        {
+            if(run_count < 10)
+            {
+                llSensor(token, last_detected_token_key, SCRIPTED, 95, PI);
+                run_count++;
+            }
+            else
+            {
+                token_check = FALSE;
+                last_detected_token_key = NULL_KEY;
+                last_detected_token_owner = NULL_KEY;
+                run_count = 0;
+            }
+        }
+        llSetTimerEvent(1);
+    }
+    no_sensor()
+    {
+        if(llList2String(llGetObjectDetails(last_detected_token_key, [OBJECT_NAME]), 0) == "")
+        {
+            string ender;
+            if(llGetObjectPrimCount(llGetKey()) > 1)
+            {
+                ender = llGetLinkName(LINK_ROOT);
+            }
+            else
+            {
+                ender = llGetObjectName();
+            }
+            llRegionSayTo(last_detected_token_owner, 1112223334,(string)last_detected_token_owner + "|" + "HOLE" + "|"+ ender);
+        }
+        last_detected_token_key = NULL_KEY;
+        last_detected_token_owner = NULL_KEY;
+        run_count = 0;
+        token_check = FALSE;
+        if(llGetListLength(positions) > 1 && delay > 0)
+        {
+            llSetTimerEvent(1);
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER || change & CHANGED_INVENTORY)
+        {
+            llResetScript();
+        }
+    }
+}
