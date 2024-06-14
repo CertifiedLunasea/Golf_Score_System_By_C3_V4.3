@@ -1,0 +1,51 @@
+# Golf Hole by C3
+# NOTE: Lines that are blank or star with # are not used by the script.
+# The object, time, and range settings are in name=value pairs.
+# The name of the setting occurs to the left of the = sign in each pair.
+# You will set the value of each setting on the right of the = sign in each pair.
+# Potential positions are set by entering a coordinate vector on a line by itself.
+# A maximum of 20 potential positions can be entered.
+# NOTE: This notecard is optional for regular golf if holes do not need to move.
+# IMPORTANT: This notecard is required for disc golf baskets and for the hole/basket movement feature to work.
+
+# GOLF GAME OBJECT (REQUIRED FOR DISC GOLF)
+# This setting dictates if the hole is used for regular golf or disc golf.
+# Set this to one of "disc", "golf disc", "golfdisc", "disc golf" or "discgold" for it to operate as a Disc Golf Basket.
+# NOTE: This setting must be set to one of the above values for disc golf baskets to work.
+# Any other setting, leaving the setting blank, or omitting the setting will cause it to operate as a regular Golf Hole.
+# The default operation is as a regular Golf Hole.
+object = 
+
+# TIME BETWEEN POSITION CHANGES (OPTIONAL)
+# Time must be set in minutes and can use fractions of a minute (decimals).
+# Setting time to 0 or leaving it blank will disable the automatic movement of the hole.
+# Time must be set no lower than 10 to work.
+# Time must be set no higher than 43200 to work.
+# NOTE: 43200 minutes is exactly 30 days.
+# Any non-zero and non-blank setting below 10 will be treated as 10 minutes.
+# Any setting above 43200 will be treated as 43200 minutes (30 days).
+time = 
+
+# NEARBY AVATAR RANGE (OPTIONAL)
+# The holes will delay movement if any avatar is found within a set range.
+# The range setting allows you to set that range.
+# The range setting must be set in meters from the center of the hole object.
+# The range setting must be set no lower than 5 to work.
+# The range setting must be set no higher than 30 to work.
+# Any setting below 5 will be treated as 5 meters.
+# Any setting above 30 will be treated as 30 meters.
+# Leaving this setting blank will use the default value of 15 meters.
+range = 
+
+# POTENTIAL POSITIONS LIST (OPTIONAL)
+# Potential position settings consist only of vector values.
+# Only supply the vector value and nothing else.
+# Potential positions are set without a setting name or = character on the line.
+# All Potential position settings must be in vector format.
+# All potential positions must be on their own line.
+# Vector X and Y values must be greater than 0.
+# Vector X and Y values must also be less than 255.
+# Vector Z values must be set to altitudes above region water level.
+# Vector Z values must be set to altitudes lower than 4096 (build limit).
+# Only the first 20 unique positions will be utilized.
+# Positions beyond the first 20 unique positions are discarded.
