@@ -1,0 +1,222 @@
+key lead_av;
+list avatars;
+float time;
+integer linknum;
+integer notify;
+integer new_lead;
+vector prev_pos;
+default
+{
+    on_rez(integer start_params)
+    {
+        llResetScript();
+    }
+    state_entry()
+    {
+        time = 0;
+        notify = FALSE;
+        new_lead = FALSE;
+        lead_av = NULL_KEY;
+        linknum = -999;
+        integer i;
+        for(i = 0; i < llGetNumberOfPrims()+1; i++)
+        {
+            if(llStringTrim(llToLower(llGetLinkName(i)), STRING_TRIM) != "tee")
+            {
+                integer x;
+                for(x = 1; x < llGetLinkNumberOfSides(i); x++)
+                {
+                    llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, x, TEXTURE_TRANSPARENT, <1, 1, 0>, ZERO_VECTOR, 0, PRIM_COLOR, x, <1, 1, 1>, 1.0, PRIM_ALPHA_MODE, x, PRIM_ALPHA_MODE_MASK, 255, PRIM_GLOW, x, 0.0, PRIM_FULLBRIGHT, x, FALSE]);
+                }
+            }
+            if(llStringTrim(llToLower(llGetLinkName(i)), STRING_TRIM) == "tee")
+            {
+                linknum = i;
+                llSetLinkPrimitiveParamsFast(i, [PRIM_TEXTURE, ALL_SIDES, TEXTURE_TRANSPARENT, <1, 1, 0>, ZERO_VECTOR, 0, PRIM_COLOR, ALL_SIDES, <1, 1, 1>, 1.0, PRIM_ALPHA_MODE, ALL_SIDES, PRIM_ALPHA_MODE_MASK, 255, PRIM_GLOW, ALL_SIDES, 0.0, PRIM_FULLBRIGHT, ALL_SIDES, FALSE, PRIM_TEXT, "", <1, 1, 1>, 0.0]);
+            }
+        }
+        if(linknum != -999)
+        {
+            llSetLinkPrimitiveParamsFast(linknum, [PRIM_TEXT, "", <1, 1, 1>, 1.0]);
+            llSetLinkPrimitiveParamsFast(linknum, [PRIM_POS_LOCAL, ZERO_VECTOR]);
+            avatars = [];
+            llVolumeDetect(TRUE);
+            llOwnerSay("Tee ID = " + (string)llGetLinkKey(linknum));
+        }
+        else
+        {
+            llOwnerSay("Looks like something went wrong. The tee ID was not found. Please rez a brand new copy of the Omni-Tee by C3 to fix the issue. If you still see this error message after rezzing a fresh copy of the Omni-Tee by C3 then please contact secondlife:///app/agent/ae666d2f-02c0-4dee-9a0a-938a82528b62/about for assistance. Please make sure to include a copy of this message in your support request.");
+        }
+    }
+    timer()
+    {
+        if(llGetListLength(avatars) > 0)
+        {
+            if(llList2Key(avatars, 0) != lead_av)
+            {
+                lead_av = llList2Key(avatars, 0);
+                new_lead = TRUE;
+            }
+            vector player_pos = llList2Vector(llGetObjectDetails(lead_av, [OBJECT_POS]), 0);
+            if(player_pos != ZERO_VECTOR && llGetAgentSize(lead_av) != ZERO_VECTOR)
+            {
+                vector curr_pos = llList2Vector(llGetLinkPrimitiveParams(linknum, [PRIM_POS_LOCAL]), 0)/llGetRootRotation();
+                vector my_pos = llGetPos();
+                vector tee_pos = <player_pos.x-my_pos.x, player_pos.y-my_pos.y, 0>/llGetRootRotation();
+                vector size = llGetScale();
+                
+                if(llFabs(tee_pos.x) < (size.x/2)-0.025 && llFabs(tee_pos.y) < (size.y/2)-0.025)
+                {
+                    time = 0;
+                    notify = FALSE;
+                    if(new_lead == TRUE)
+                    {
+                        llRegionSayTo(lead_av, 0, "It is your turn to tee off, " + llKey2Name(lead_av) + ". Please remember to move from the tee area when you are done.");
+                        new_lead = FALSE;
+                    }
+                    if(llVecDist(tee_pos, prev_pos) >= 0.1)
+                    {
+                        llSetLinkPrimitiveParamsFast(linknum, [PRIM_POS_LOCAL, tee_pos]);
+                        prev_pos = tee_pos;
+                    }
+                }
+                else
+                {
+                    if(time == 0 && lead_av != NULL_KEY)
+                    {
+                        llResetTime();
+                        notify = TRUE;
+                        time = 5.15;
+                    }
+                    else
+                    {
+                        integer send = FALSE;
+                        if(llFabs(tee_pos.x) < (size.x/2)+0.1 && llFabs(tee_pos.y) < (size.y/2)+0.1)
+                        {
+                            send = TRUE;
+                        }
+                        if(notify == TRUE && lead_av != NULL_KEY && llList2Key(avatars, 0) == lead_av)
+                        {
+                            notify = FALSE;
+                            if(send == TRUE)
+                            {
+                                llRegionSayTo(lead_av, 0, "Please ensure both feet are completely within the tee area in the next 5 seconds to prevent forfeiting your turn.");
+                            }
+                        }
+                        float curr_time = llGetTime();
+                        if(send == FALSE && time != 0)
+                        {
+                            time = curr_time;
+                        }
+                        if(curr_time >= time)
+                        {
+                            avatars = llDeleteSubList(avatars, 0, 0);
+                            time = 0;
+                            new_lead = FALSE;
+                            if(llGetListLength(avatars) > 1)
+                            {
+                                avatars += lead_av;
+                                if(send == TRUE)
+                                {
+                                    llRegionSayTo(lead_av, 0, "Your turn has been forfeited. You are now last in line to tee off. Please wait to tee off until you are notified that it is your turn again.");
+                                }
+                                new_lead = TRUE;
+                            }
+                            else
+                            {
+                                avatars = llDeleteSubList(avatars, 0, 0);
+                                lead_av = NULL_KEY;
+                                if(send == TRUE)
+                                {
+                                    llRegionSayTo(lead_av, 0, "Your turn has been forfeited. Please exit and then re-enter the tee area before teeing off.");
+                                }
+                            }
+                            llSetLinkPrimitiveParamsFast(linknum, [PRIM_POS_LOCAL, ZERO_VECTOR]);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                avatars = llDeleteSubList(avatars, 0, 0);
+                time = 0;
+                notify = FALSE;
+                new_lead = FALSE;
+                llSetLinkPrimitiveParamsFast(linknum, [PRIM_POS_LOCAL, ZERO_VECTOR]);
+            }
+        }
+        else
+        {
+            time = 0;
+            notify = FALSE;
+            new_lead = FALSE;
+            llSetLinkPrimitiveParamsFast(linknum, [PRIM_POS_LOCAL, ZERO_VECTOR]);
+            llSetTimerEvent(0);
+        }
+    }
+    collision_start(integer num)
+    {
+        integer i;
+        for(i = 0; i < num; i++)
+        {
+            integer index = llListFindList(avatars, [llDetectedKey(i)]);
+            if(llGetAgentSize(llDetectedKey(i)) != ZERO_VECTOR && index == -1)
+            {
+                avatars += llDetectedKey(i);
+                if(llGetListLength(avatars) > 1)
+                {
+                    llRegionSayTo(llDetectedKey(i), 0, "Please wait to tee off until you are notified that it is your turn.");
+                }
+            }
+        }
+        if(llGetListLength(avatars) > 0)
+        {
+            llSetTimerEvent(0.15);
+        }
+    }
+    collision_end(integer num)
+    {
+        integer i;
+        for(i = 0; i < num; i++)
+        {
+            integer index = llListFindList(avatars, [llDetectedKey(i)]);
+            if(llGetAgentSize(llDetectedKey(i)) == ZERO_VECTOR || index != -1)
+            {
+                if(index != -1)
+                {
+                    avatars = llDeleteSubList(avatars, index, index);
+                    if(llDetectedKey(i) == lead_av)
+                    {
+                        lead_av = NULL_KEY;
+                        time = 0;
+                        notify = FALSE;
+                        new_lead = FALSE;
+                    }
+                }
+            }
+        }
+        if(llGetListLength(avatars) == 0)
+        {
+            time = 0;
+            notify = FALSE;
+            new_lead = FALSE;
+            lead_av = NULL_KEY;
+            llSetLinkPrimitiveParamsFast(linknum, [PRIM_POS_LOCAL, ZERO_VECTOR]);
+            llSetTimerEvent(0);
+        }
+    }
+    changed(integer change)
+    {
+        if(change & CHANGED_OWNER)
+        {
+            llResetScript();
+        }
+        if(change & CHANGED_LINK)
+        {
+            while(llGetNumberOfPrims() > llGetObjectPrimCount(llGetKey()))
+            {
+                llUnSit(llGetLinkKey(llGetNumberOfPrims()));
+            }
+        }
+    }
+}
